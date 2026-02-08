@@ -1,0 +1,13 @@
+{
+  "name": "gym-admin-system-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --filter \"./apps/*\" --parallel run dev",
+    "dev:fresh": "./scripts/dev.sh",
+    "build": "pnpm --filter \"./apps/*\" --filter \"./packages/*\" --recursive run build",
+    "lint": "pnpm --filter \"./apps/*\" --filter \"./packages/*\" --recursive run lint",
+    "test": "pnpm --filter \"./apps/*\" --filter \"./packages/*\" --recursive run test"
+  },
+  "packageManager": "pnpm@9.0.0"
+}

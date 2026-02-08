@@ -1,0 +1,207 @@
+.plans {
+  padding: 150px 0 var(--spacing-l);
+  background-color: var(--bg-dark);
+  scroll-margin-top: 140px;
+}
+
+.sectionTitle {
+  text-align: center;
+  font-size: 2.5rem;
+  margin-bottom: var(--spacing-l);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--spacing-m);
+  align-items: stretch;
+}
+
+@media (max-width: 992px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.card {
+  padding: var(--spacing-l);
+  background: var(--bg-surface);
+  border-radius: 20px;
+  display: grid;
+  grid-template-rows: auto auto auto 1fr auto;
+  gap: 0;
+  position: relative;
+  border: 1px solid var(--glass-border);
+  transition:
+    border-color 0.3s ease,
+    box-shadow 320ms ease;
+  height: 100%;
+}
+
+/* Hover: match Benefits hover: no lift, subtle yellow border and neon shadow */
+.card:hover {
+  /* Hover should match the highlighted look */
+  transform: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 40px var(--primary-glow);
+  background: rgba(191, 255, 0, 0.02);
+}
+
+.highlighted {
+  border-color: var(--primary);
+  box-shadow: 0 0 40px var(--primary-glow);
+  z-index: 10;
+  background: rgba(191, 255, 0, 0.02);
+}
+
+/* When hovering any card, demote the default highlighted card unless it itself is hovered */
+.grid:hover .highlighted:not(:hover) {
+  border-color: var(--glass-border);
+  box-shadow: none;
+  background: var(--bg-surface);
+}
+
+.badge {
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--primary);
+  color: var(--bg-dark);
+  padding: 6px 16px;
+  border-radius: 30px;
+  font-weight: 700;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.badge::before {
+  content: "★";
+}
+
+.planHeader {
+  text-align: left;
+  margin-bottom: 1.5rem;
+  min-height: 4.2rem; /* reserve space so descriptions align */
+}
+
+.planName {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+.planDescription {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.priceContainer {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: flex-start;
+  margin-bottom: 1.6rem;
+}
+
+.currency {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--primary);
+  margin-right: 2px;
+}
+
+.amount {
+  font-size: 3.5rem;
+  font-weight: 700;
+  font-family: "Space Grotesk", sans-serif;
+  color: var(--primary);
+}
+
+.period {
+  color: var(--text-muted);
+  font-size: 1rem;
+  margin-left: 4px;
+}
+
+.priceMain {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.priceSub {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin-top: 6px;
+  min-height: 1.1rem; /* reserve space for monthly note even if empty */
+}
+
+.features {
+  list-style: none;
+  margin-bottom: 0;
+  padding-bottom: 2rem;
+}
+
+.features li {
+  padding: 0.65rem 0;
+  font-size: 0.95rem;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+}
+
+.features li::before {
+  content: "✓";
+  color: var(--primary);
+  margin-right: 12px;
+  font-weight: bold;
+}
+
+.ctaPrimary {
+  background: var(--primary);
+  color: var(--bg-dark);
+  text-align: center;
+  padding: 1.15rem;
+  border-radius: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  transition: var(--transition-smooth);
+  margin-top: auto;
+  align-self: end;
+}
+
+.ctaPrimary:hover {
+  transform: none;
+  box-shadow: 0 10px 20px var(--primary-glow);
+}
+
+.ctaSecondary {
+  background: transparent;
+  border: 1px solid var(--primary);
+  color: var(--primary);
+  text-align: center;
+  padding: 1.15rem;
+  border-radius: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  transition: var(--transition-smooth);
+  margin-top: auto;
+  align-self: end;
+}
+
+.ctaSecondary:hover {
+  background: var(--primary);
+  color: var(--bg-dark);
+  transform: none;
+  box-shadow: 0 8px 20px rgba(191, 255, 0, 0.06);
+}
+
+@media (max-width: 992px) {
+  .highlighted {
+    transform: none;
+  }
+}
