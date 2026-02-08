@@ -15,7 +15,6 @@
   left: 20px;
   right: 20px;
   z-index: 1000;
-  /* Sin transform en el padre: evita que se rompa backdrop-filter en el hijo */
   opacity: 0;
   transition: opacity 360ms ease-out;
 }
@@ -33,35 +32,25 @@
   padding: 0.5rem 1rem;
   border-radius: 14px;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(18, 18, 23, 0.58);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  -webkit-backdrop-filter: blur(16px) saturate(130%);
+  backdrop-filter: blur(16px) saturate(130%);
   box-shadow:
-    0 4px 30px rgba(0, 0, 0, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    0 8px 28px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
 }
 
-/* Simula glass esmerilado: duplica el fondo del hero y aplica blur (evita backdrop-filter) */
-.glassBlur {
-  position: absolute;
-  inset: -20px;
-  z-index: 0;
-  background-image: url("/hero-bg.png");
-  background-size: cover;
-  background-position: center;
-  background-attachment: fixed;
-  filter: blur(28px);
-}
-
-.glassOverlay {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  background: rgba(20, 20, 25, 0.65);
-  border-radius: 14px;
+/* Fallback para navegadores sin soporte de backdrop-filter */
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .nav {
+    background: rgba(18, 18, 23, 0.84);
+  }
 }
 
 .container {
   position: relative;
-  z-index: 2;
+  z-index: 1;
   display: flex;
   justify-content: space-between;
   align-items: center;

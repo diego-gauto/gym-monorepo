@@ -50,8 +50,6 @@ export default function Navbar() {
   return (
     <header className={`${styles.header} ${shown ? styles.visible : ""}`}>
       <nav className={styles.nav}>
-        <div className={styles.glassBlur} aria-hidden />
-        <div className={styles.glassOverlay} aria-hidden />
         <div className={styles.container}>
           <div className={styles.logo}>
             <Link href="/">
