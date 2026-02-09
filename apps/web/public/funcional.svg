@@ -1,0 +1,25 @@
+<svg width="1200" height="900" viewBox="0 0 1200 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0B0F14"/>
+      <stop offset="55%" stop-color="#1A222D"/>
+      <stop offset="100%" stop-color="#11171F"/>
+    </linearGradient>
+    <radialGradient id="pulse" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(870 280) rotate(129) scale(520 460)">
+      <stop stop-color="#BFFF00" stop-opacity="0.38"/>
+      <stop offset="1" stop-color="#BFFF00" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="900" fill="url(#bg)"/>
+  <circle cx="870" cy="280" r="360" fill="url(#pulse)"/>
+  <g stroke="#E7EDF5" stroke-opacity="0.16">
+    <path d="M130 700L350 470L515 630L780 360L980 520" stroke-width="12" stroke-linecap="round"/>
+    <path d="M160 740L365 540L530 700L790 430L1020 590" stroke-width="8" stroke-linecap="round"/>
+    <path d="M128 318H420" stroke-width="14" stroke-linecap="round"/>
+    <path d="M420 318H505" stroke="#BFFF00" stroke-width="14" stroke-linecap="round"/>
+    <path d="M92 236H245" stroke-width="10" stroke-linecap="round"/>
+    <path d="M92 276H205" stroke-width="10" stroke-linecap="round"/>
+  </g>
+  <text x="120" y="390" fill="#F5F7FA" font-size="94" font-family="Arial, Helvetica, sans-serif" font-weight="700">FUNCIONAL</text>
+  <text x="122" y="445" fill="#BFC7D2" font-size="34" font-family="Arial, Helvetica, sans-serif">fuerza · movilidad · coordinación</text>
+</svg>
