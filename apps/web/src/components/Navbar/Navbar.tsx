@@ -26,23 +26,60 @@ export default function Navbar() {
 
   useEffect(() => {
     if (pathname !== "/") return;
-    const sections = NAV_LINKS.map((l) => l.href.slice(1));
-    const handleScroll = () => {
-      if (window.scrollY < 150) {
-        setActiveSection("#inicio");
-        return;
-      }
-      for (let i = sections.length - 1; i >= 0; i--) {
-        const el = document.getElementById(sections[i]);
-        if (el && el.getBoundingClientRect().top <= 120) {
-          setActiveSection(`#${sections[i]}`);
+
+    const sectionIds = NAV_LINKS.map((l) => l.href.slice(1));
+    const sections = sectionIds
+      .map((id) => document.getElementById(id))
+      .filter((section): section is HTMLElement => section !== null);
+
+    if (sections.length === 0) return;
+
+    const updateActiveFromScroll = () => {
+      const navElement = document.querySelector("header nav");
+      const navHeight = navElement instanceof HTMLElement ? navElement.offsetHeight : 0;
+      const probeY = window.innerHeight * 0.35 + navHeight;
+
+      let currentSection = sections[0].id;
+      for (const section of sections) {
+        const sectionTop = section.offsetTop;
+        if (probeY + window.scrollY >= sectionTop) {
+          currentSection = section.id;
+        } else {
           break;
         }
       }
+
+      setActiveSection(`#${currentSection}`);
     };
-    handleScroll();
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visibleSections = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+
+        if (visibleSections.length > 0) {
+          setActiveSection(`#${visibleSections[0].target.id}`);
+          return;
+        }
+
+        updateActiveFromScroll();
+      },
+      {
+        root: null,
+        rootMargin: "-20% 0px -55% 0px",
+        threshold: [0.15, 0.35, 0.6],
+      },
+    );
+
+    sections.forEach((section) => observer.observe(section));
+    updateActiveFromScroll();
+    window.addEventListener("scroll", updateActiveFromScroll, { passive: true });
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("scroll", updateActiveFromScroll);
+    };
   }, [pathname]);
 
   if (!mounted) return null;
