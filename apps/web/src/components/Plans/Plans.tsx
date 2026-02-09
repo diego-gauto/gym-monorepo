@@ -1,10 +1,25 @@
-import React from "react";
-import Link from "next/link";
+"use client";
+
+import React, { useMemo, useState } from "react";
 import styles from "./Plans.module.css";
+
+type PlanId = "monthly" | "quarterly" | "yearly";
+
+type BillingContext = {
+  isAuthenticated: boolean;
+  activeSubscriptionEndDate?: string | null;
+  paidAccessEndsAt?: string | null;
+};
+
+type DialogState =
+  | { kind: "none" }
+  | { kind: "authRequired"; planId: PlanId }
+  | { kind: "alreadySubscribed"; planId: PlanId; endDate: string | null }
+  | { kind: "paidPeriod"; planId: PlanId; endDate: string };
 
 const PLANS = [
   {
-    id: "monthly",
+    id: "monthly" as const,
     name: "Mensual",
     description: "Ideal para empezar tu transformación",
     monthlyNumeric: 15000,
@@ -17,7 +32,7 @@ const PLANS = [
     highlight: false,
   },
   {
-    id: "quarterly",
+    id: "quarterly" as const,
     name: "Trimestral",
     description: "La mejor relación precio-calidad",
     monthlyNumeric: 12000,
@@ -32,7 +47,7 @@ const PLANS = [
     badge: "Más Popular",
   },
   {
-    id: "yearly",
+    id: "yearly" as const,
     name: "Anual",
     description: "Máximo compromiso, máximos beneficios",
     monthlyNumeric: 10000,
@@ -52,7 +67,84 @@ function formatNumber(n: number) {
   return n.toLocaleString("es-AR");
 }
 
+function parseDate(dateLike?: string | null): Date | null {
+  if (!dateLike) return null;
+  const date = new Date(dateLike);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function formatDate(dateLike?: string | null): string {
+  const date = parseDate(dateLike);
+  if (!date) return "fecha pendiente de confirmación";
+  return new Intl.DateTimeFormat("es-AR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(date);
+}
+
+function buildCheckoutUrl(planId: PlanId, mode?: "scheduled_change" | "deferred_activation") {
+  const params = new URLSearchParams({ plan: planId });
+  if (mode) params.set("mode", mode);
+  return `/checkout/mercadopago?${params.toString()}`;
+}
+
+function buildLoginUrl(planId: PlanId) {
+  const checkout = buildCheckoutUrl(planId);
+  const params = new URLSearchParams({
+    plan: planId,
+    next: checkout,
+  });
+  return `/auth/login?${params.toString()}`;
+}
+
+function buildRegisterUrl(planId: PlanId) {
+  const checkout = buildCheckoutUrl(planId);
+  const params = new URLSearchParams({
+    plan: planId,
+    next: checkout,
+  });
+  return `/auth/register?${params.toString()}`;
+}
+
 export default function Plans() {
+  const [dialog, setDialog] = useState<DialogState>({ kind: "none" });
+
+  const billingContext = useMemo<BillingContext>(() => {
+    if (typeof window === "undefined") {
+      return { isAuthenticated: false };
+    }
+
+    const globalContext = (window as Window & { __GYM_BILLING_CONTEXT__?: BillingContext })
+      .__GYM_BILLING_CONTEXT__;
+
+    return globalContext ?? { isAuthenticated: false };
+  }, []);
+
+  const goToCheckout = (planId: PlanId, mode?: "scheduled_change" | "deferred_activation") => {
+    window.location.href = buildCheckoutUrl(planId, mode);
+  };
+
+  const handleChoosePlan = (planId: PlanId) => {
+    if (!billingContext.isAuthenticated) {
+      setDialog({ kind: "authRequired", planId });
+      return;
+    }
+
+    if (billingContext.activeSubscriptionEndDate) {
+      setDialog({ kind: "alreadySubscribed", planId, endDate: billingContext.activeSubscriptionEndDate });
+      return;
+    }
+
+    const paidPeriodEnd = parseDate(billingContext.paidAccessEndsAt);
+    if (paidPeriodEnd && paidPeriodEnd.getTime() > Date.now()) {
+      setDialog({ kind: "paidPeriod", planId, endDate: billingContext.paidAccessEndsAt! });
+      return;
+    }
+
+    goToCheckout(planId);
+  };
+
   return (
     <section id="planes" className={styles.plans}>
       <div className="container">
@@ -97,16 +189,92 @@ export default function Plans() {
                   <li key={i}>{f}</li>
                 ))}
               </ul>
-              <Link
-                href={`/auth/register?plan=${plan.id}`}
+              <button
+                type="button"
                 className={styles.ctaSecondary}
+                onClick={() => handleChoosePlan(plan.id)}
               >
                 Elegir Plan
-              </Link>
+              </button>
             </div>
           ))}
         </div>
       </div>
+
+      {dialog.kind !== "none" && (
+        <div className={styles.modalOverlay} onClick={() => setDialog({ kind: "none" })}>
+          <div className={styles.modal} onClick={(event) => event.stopPropagation()}>
+            {dialog.kind === "authRequired" && (
+              <>
+                <h3 className={styles.modalTitle}>Iniciá sesión para continuar</h3>
+                <p className={styles.modalText}>
+                  Para evitar estados ambiguos y dobles cobros, primero necesitamos identificar tu cuenta.
+                </p>
+                <div className={styles.modalActions}>
+                  <a className={styles.modalButtonPrimary} href={buildLoginUrl(dialog.planId)}>
+                    Iniciar sesión
+                  </a>
+                  <a className={styles.modalButtonSecondary} href={buildRegisterUrl(dialog.planId)}>
+                    Crear cuenta
+                  </a>
+                </div>
+              </>
+            )}
+
+            {dialog.kind === "alreadySubscribed" && (
+              <>
+                <h3 className={styles.modalTitle}>Ya tenés una suscripción activa</h3>
+                <p className={styles.modalText}>
+                  Podés hacer upgrade o downgrade sin interrupciones. El cambio se hará efectivo al terminar
+                  el período actual ({formatDate(dialog.endDate)}).
+                </p>
+                <div className={styles.modalActions}>
+                  <button
+                    type="button"
+                    className={styles.modalButtonPrimary}
+                    onClick={() => goToCheckout(dialog.planId, "scheduled_change")}
+                  >
+                    Solicitar cambio de plan
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.modalButtonSecondary}
+                    onClick={() => setDialog({ kind: "none" })}
+                  >
+                    Entendido
+                  </button>
+                </div>
+              </>
+            )}
+
+            {dialog.kind === "paidPeriod" && (
+              <>
+                <h3 className={styles.modalTitle}>Tenés un período pago vigente</h3>
+                <p className={styles.modalText}>
+                  Tu nuevo plan se activará cuando termine el período abonado ({formatDate(dialog.endDate)}).
+                  No se aplicarán dobles cobros.
+                </p>
+                <div className={styles.modalActions}>
+                  <button
+                    type="button"
+                    className={styles.modalButtonPrimary}
+                    onClick={() => goToCheckout(dialog.planId, "deferred_activation")}
+                  >
+                    Continuar a Mercado Pago
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.modalButtonSecondary}
+                    onClick={() => setDialog({ kind: "none" })}
+                  >
+                    Volver
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </section>
   );
 }
