@@ -59,7 +59,7 @@ export default function Disciplines() {
               <div className={styles.cardContent}>
                 <h3 className={styles.cardTitle}>{d.name}</h3>
                 <p className={styles.cardDesc}>{d.desc}</p>
-                <span className={styles.more}>Ver Actividad</span>
+                <span className={styles.more}>Ver actividad</span>
               </div>
             </Link>
           ))}
