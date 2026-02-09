@@ -71,44 +71,26 @@ export default function Plans() {
                 <p className={styles.planDescription}>{plan.description}</p>
               </div>
               <div className={styles.priceContainer}>
-                {plan.id === "monthly" ? (
-                  <>
-                    <div className={styles.priceMain}>
-                      <span className={styles.currency}>$</span>
-                      <span className={styles.amount}>
-                        {formatNumber(plan.monthlyNumeric)}
-                      </span>
-                      <span className={styles.period}>/mes</span>
-                    </div>
-                    <div className={styles.priceSub} aria-hidden="true">
-                      &nbsp;
-                    </div>
-                  </>
-                ) : plan.id === "quarterly" ? (
-                  <>
-                    <div className={styles.priceMain}>
-                      <span className={styles.currency}>$</span>
-                      <span className={styles.amount}>
-                        {formatNumber(plan.monthlyNumeric * 3)}
-                      </span>
-                    </div>
-                    <div className={styles.priceSub}>
-                      /{formatNumber(plan.monthlyNumeric)} /mes
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className={styles.priceMain}>
-                      <span className={styles.currency}>$</span>
-                      <span className={styles.amount}>
-                        {formatNumber(plan.monthlyNumeric * 12)}
-                      </span>
-                    </div>
-                    <div className={styles.priceSub}>
-                      /{formatNumber(plan.monthlyNumeric)} /mes
-                    </div>
-                  </>
-                )}
+                <div className={styles.priceMain}>
+                  <span className={styles.currency}>$</span>
+                  <span className={styles.amount}>
+                    {formatNumber(
+                      plan.id === "monthly"
+                        ? plan.monthlyNumeric
+                        : plan.id === "quarterly"
+                          ? plan.monthlyNumeric * 3
+                          : plan.monthlyNumeric * 12,
+                    )}
+                  </span>
+                  {plan.id === "monthly" && (
+                    <span className={styles.period}>/mes</span>
+                  )}
+                </div>
+                <div className={styles.priceSub}>
+                  {plan.id === "monthly"
+                    ? "\u00a0"
+                    : `te queda en $${formatNumber(plan.monthlyNumeric)} / mes`}
+                </div>
               </div>
               <ul className={styles.features}>
                 {plan.features.map((f, i) => (
@@ -117,9 +99,7 @@ export default function Plans() {
               </ul>
               <Link
                 href={`/auth/register?plan=${plan.id}`}
-                className={
-                  plan.highlight ? styles.ctaPrimary : styles.ctaSecondary
-                }
+                className={styles.ctaSecondary}
               >
                 Elegir Plan
               </Link>

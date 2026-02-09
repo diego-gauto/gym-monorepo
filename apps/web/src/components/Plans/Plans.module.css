@@ -86,7 +86,7 @@
 .planHeader {
   text-align: left;
   margin-bottom: 1.5rem;
-  min-height: 4.2rem; /* reserve space so descriptions align */
+  min-height: 5rem; /* reserve 2 lines so descriptions align */
 }
 
 .planName {
@@ -97,6 +97,8 @@
 .planDescription {
   color: var(--text-muted);
   font-size: 0.9rem;
+  line-height: 1.35;
+  min-height: calc(1.35em * 2);
 }
 
 .priceContainer {
@@ -159,24 +161,6 @@
   color: var(--primary);
   margin-right: 12px;
   font-weight: bold;
-}
-
-.ctaPrimary {
-  background: var(--primary);
-  color: var(--bg-dark);
-  text-align: center;
-  padding: 1.15rem;
-  border-radius: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  transition: var(--transition-smooth);
-  margin-top: auto;
-  align-self: end;
-}
-
-.ctaPrimary:hover {
-  transform: none;
-  box-shadow: 0 10px 20px var(--primary-glow);
 }
 
 .ctaSecondary {
