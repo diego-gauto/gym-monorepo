@@ -113,7 +113,7 @@ export default function Navbar() {
           </ul>
 
           <div className={styles.rightActions}>
-            <Link href="/auth/login" className={styles.loginLink}>
+            <Link href="/login" className={styles.loginLink}>
               <svg
                 className={styles.userIcon}
                 width="18"
