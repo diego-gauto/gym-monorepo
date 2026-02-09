@@ -7,7 +7,7 @@ type Props = {
 export default async function RegisterPage({ searchParams }: Props) {
   const params = (await searchParams) ?? {};
   const plan = typeof params.plan === "string" ? params.plan : null;
-  const next = typeof params.next === "string" ? params.next : null;
+  const origin = typeof params.origin === "string" ? params.origin : null;
 
-  return <RegisterClient initialPlan={plan} initialNext={next} />;
+  return <RegisterClient initialPlan={plan} initialOrigin={origin} />;
 }

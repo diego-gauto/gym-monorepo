@@ -1,20 +1,26 @@
-import { IsEmail, IsNotEmpty, IsString, MinLength, MaxLength, Matches } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsString, Matches, MinLength } from 'class-validator';
 
 export class RegisterDto {
   @IsNotEmpty()
   @IsString()
-  @MaxLength(100)
-  name!: string;
+  firstName!: string;
+
+  @IsNotEmpty()
+  @IsString()
+  lastName!: string;
 
   @IsEmail()
   email!: string;
 
   @IsNotEmpty()
-  @IsString()
-  @Matches(/^\d{7,8}$/, { message: 'DNI must be 7 or 8 digits' })
-  dni!: string;
+  @Matches(/^[0-9+\-\s]{8,20}$/)
+  phone!: string;
 
   @IsNotEmpty()
   @MinLength(8)
   password!: string;
+
+  @IsNotEmpty()
+  @IsString()
+  confirmPassword!: string;
 }
