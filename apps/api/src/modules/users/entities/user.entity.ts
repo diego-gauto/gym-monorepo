@@ -29,22 +29,22 @@ export class User implements IUser {
   @Column({ name: 'email_verified_at', type: 'timestamp', nullable: true })
   emailVerifiedAt?: Date | null;
 
-  @Column({ name: 'email_verification_token_hash', nullable: true })
+  @Column({ name: 'email_verification_token_hash', type: 'varchar', nullable: true })
   emailVerificationTokenHash?: string | null;
 
   @Column({ name: 'email_verification_token_expires_at', type: 'timestamp', nullable: true })
   emailVerificationTokenExpiresAt?: Date | null;
 
-  @Column({ name: 'auth_provider', default: 'LOCAL' })
+  @Column({ name: 'auth_provider', type: 'varchar', default: 'LOCAL' })
   authProvider!: 'LOCAL' | 'GOOGLE';
 
-  @Column({ name: 'google_sub', nullable: true })
+  @Column({ name: 'google_sub', type: 'varchar', nullable: true })
   googleSub?: string | null;
 
   @Column({ type: 'simple-enum', enum: MembershipStatus, default: MembershipStatus.ACTIVE })
   status!: MembershipStatus;
 
-  @Column({ default: 'USER' })
+  @Column({ type: 'varchar', default: 'USER' })
   role!: 'ADMIN' | 'USER';
 
   @Column({ name: 'mp_customer_id', nullable: true })
