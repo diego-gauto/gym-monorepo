@@ -13,7 +13,6 @@ type BillingContext = {
 
 type DialogState =
   | { kind: "none" }
-  | { kind: "authRequired"; planId: PlanId }
   | { kind: "alreadySubscribed"; planId: PlanId; endDate: string | null }
   | { kind: "paidPeriod"; planId: PlanId; endDate: string };
 
@@ -89,22 +88,13 @@ function buildCheckoutUrl(planId: PlanId, mode?: "scheduled_change" | "deferred_
   return `/checkout/mercadopago?${params.toString()}`;
 }
 
-function buildLoginUrl(planId: PlanId) {
-  const checkout = buildCheckoutUrl(planId);
-  const params = new URLSearchParams({
-    plan: planId,
-    next: checkout,
-  });
-  return `/auth/login?${params.toString()}`;
-}
-
 function buildRegisterUrl(planId: PlanId) {
   const checkout = buildCheckoutUrl(planId);
   const params = new URLSearchParams({
     plan: planId,
     next: checkout,
   });
-  return `/auth/register?${params.toString()}`;
+  return `/register?${params.toString()}`;
 }
 
 export default function Plans() {
@@ -127,7 +117,8 @@ export default function Plans() {
 
   const handleChoosePlan = (planId: PlanId) => {
     if (!billingContext.isAuthenticated) {
-      setDialog({ kind: "authRequired", planId });
+      localStorage.setItem("gym.selectedPlan", planId);
+      window.location.href = buildRegisterUrl(planId);
       return;
     }
 
@@ -204,23 +195,6 @@ export default function Plans() {
       {dialog.kind !== "none" && (
         <div className={styles.modalOverlay} onClick={() => setDialog({ kind: "none" })}>
           <div className={styles.modal} onClick={(event) => event.stopPropagation()}>
-            {dialog.kind === "authRequired" && (
-              <>
-                <h3 className={styles.modalTitle}>Iniciá sesión para continuar</h3>
-                <p className={styles.modalText}>
-                  Para evitar estados ambiguos y dobles cobros, primero necesitamos identificar tu cuenta.
-                </p>
-                <div className={styles.modalActions}>
-                  <a className={styles.modalButtonPrimary} href={buildLoginUrl(dialog.planId)}>
-                    Iniciar sesión
-                  </a>
-                  <a className={styles.modalButtonSecondary} href={buildRegisterUrl(dialog.planId)}>
-                    Crear cuenta
-                  </a>
-                </div>
-              </>
-            )}
-
             {dialog.kind === "alreadySubscribed" && (
               <>
                 <h3 className={styles.modalTitle}>Ya tenés una suscripción activa</h3>
