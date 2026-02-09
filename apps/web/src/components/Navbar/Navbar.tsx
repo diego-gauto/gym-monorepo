@@ -6,10 +6,10 @@ import { usePathname } from "next/navigation";
 import styles from "./Navbar.module.css";
 
 const NAV_LINKS = [
-  { href: "#inicio", label: "Inicio" },
-  { href: "#disciplinas", label: "Actividades" },
-  { href: "#planes", label: "Planes" },
-  { href: "#contacto", label: "Contacto" },
+  { href: "/", sectionHref: "#inicio", label: "Inicio" },
+  { href: "/actividades", sectionHref: "#disciplinas", label: "Actividades" },
+  { href: "/#planes", sectionHref: "#planes", label: "Planes" },
+  { href: "/#contacto", sectionHref: "#contacto", label: "Contacto" },
 ];
 
 export default function Navbar() {
@@ -27,7 +27,7 @@ export default function Navbar() {
   useEffect(() => {
     if (pathname !== "/") return;
 
-    const sectionIds = NAV_LINKS.map((l) => l.href.slice(1));
+    const sectionIds = NAV_LINKS.map((l) => l.sectionHref.slice(1));
     const sections = sectionIds
       .map((id) => document.getElementById(id))
       .filter((section): section is HTMLElement => section !== null);
@@ -98,16 +98,18 @@ export default function Navbar() {
           </div>
 
           <ul className={styles.links}>
-            {NAV_LINKS.map(({ href, label }) => (
-              <li key={href}>
-                <Link
-                  href={href}
-                  className={activeSection === href ? styles.active : ""}
-                >
-                  {label}
-                </Link>
-              </li>
-            ))}
+            {NAV_LINKS.map(({ href, sectionHref, label }) => {
+              const isHomeSection = pathname === "/" && activeSection === sectionHref;
+              const isRouteActive = pathname !== "/" && href !== "/" && pathname.startsWith(href);
+
+              return (
+                <li key={href}>
+                  <Link href={href} className={isHomeSection || isRouteActive ? styles.active : ""}>
+                    {label}
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
 
           <div className={styles.rightActions}>
