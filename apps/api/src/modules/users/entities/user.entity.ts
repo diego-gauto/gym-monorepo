@@ -20,11 +20,26 @@ export class User implements IUser {
   @Column({ unique: true })
   email!: string;
 
-  @Column({ unique: true })
+  @Column({ unique: true, nullable: true })
   dni!: string;
 
-  @Column({ select: false }) // Don't return password by default
-  password!: string;
+  @Column({ select: false, nullable: true }) // Don't return password by default
+  password?: string;
+
+  @Column({ name: 'email_verified_at', type: 'timestamp', nullable: true })
+  emailVerifiedAt?: Date | null;
+
+  @Column({ name: 'email_verification_token_hash', nullable: true })
+  emailVerificationTokenHash?: string | null;
+
+  @Column({ name: 'email_verification_token_expires_at', type: 'timestamp', nullable: true })
+  emailVerificationTokenExpiresAt?: Date | null;
+
+  @Column({ name: 'auth_provider', default: 'LOCAL' })
+  authProvider!: 'LOCAL' | 'GOOGLE';
+
+  @Column({ name: 'google_sub', nullable: true })
+  googleSub?: string | null;
 
   @Column({ type: 'simple-enum', enum: MembershipStatus, default: MembershipStatus.ACTIVE })
   status!: MembershipStatus;
