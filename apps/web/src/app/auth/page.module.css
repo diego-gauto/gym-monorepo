@@ -1,0 +1,162 @@
+.authPage {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  background: #0e1116;
+}
+
+.visualPanel {
+  position: relative;
+  background-image: url('/hero-bg.png');
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: flex-end;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.25) 0%, rgba(0, 0, 0, 0.72) 80%);
+}
+
+.visualContent {
+  position: relative;
+  z-index: 1;
+  color: #fff;
+  padding: 3rem;
+  max-width: 34rem;
+}
+
+.kicker {
+  color: #ff8f40;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  margin-bottom: 0.8rem;
+}
+
+.visualContent h1 {
+  font-size: clamp(1.7rem, 3vw, 2.6rem);
+  line-height: 1.2;
+  margin-bottom: 0.9rem;
+}
+
+.formPanel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background: #f7f8fa;
+}
+
+.card {
+  width: min(440px, 100%);
+  background: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 18px 55px rgba(18, 26, 40, 0.15);
+  padding: 2rem;
+}
+
+.card h2 {
+  font-size: 1.6rem;
+  margin-bottom: 0.3rem;
+}
+
+.card header p {
+  margin: 0;
+  color: #5f6b7a;
+}
+
+.tabs {
+  margin: 1.5rem 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+}
+
+.tab {
+  border: 1px solid #d8dde5;
+  padding: 0.65rem 0.8rem;
+  border-radius: 10px;
+  background: #fff;
+  font-weight: 600;
+}
+
+.active {
+  background: #111827;
+  color: #fff;
+  border-color: #111827;
+}
+
+.form {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.form label {
+  font-size: 0.9rem;
+  color: #263142;
+  font-weight: 600;
+}
+
+.form input {
+  border: 1px solid #cfd6e2;
+  border-radius: 10px;
+  padding: 0.75rem 0.85rem;
+  font-size: 0.95rem;
+}
+
+.submit {
+  margin-top: 0.8rem;
+  background: #ff8f40;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 0.8rem 1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.separator {
+  margin: 1.3rem 0;
+  text-align: center;
+  position: relative;
+  color: #7c8798;
+}
+
+.separator::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  border-top: 1px solid #e0e5ee;
+}
+
+.separator span {
+  position: relative;
+  z-index: 1;
+  background: #fff;
+  padding: 0 0.7rem;
+}
+
+.googleButton {
+  width: 100%;
+  border: 1px solid #d8dde5;
+  background: #fff;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (max-width: 920px) {
+  .authPage {
+    grid-template-columns: 1fr;
+  }
+
+  .visualPanel {
+    min-height: 36vh;
+  }
+}
