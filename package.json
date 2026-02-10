@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "pnpm --filter \"./apps/*\" --parallel run dev",
+    "dev": "pnpm --filter @gym-admin/shared build && pnpm --filter \"./apps/*\" --parallel run dev",
     "dev:fresh": "./scripts/dev.sh",
     "build": "pnpm --filter \"./apps/*\" --filter \"./packages/*\" --recursive run build",
     "lint": "pnpm --filter \"./apps/*\" --filter \"./packages/*\" --recursive run lint",
