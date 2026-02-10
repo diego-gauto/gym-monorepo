@@ -27,7 +27,7 @@ export class User implements IUser {
   email!: string;
 
   @Column({ unique: true, nullable: true })
-  dni?: string | null;
+  dni!: string | null;
 
   @Column({ type: 'varchar', nullable: true })
   phone?: string | null;
