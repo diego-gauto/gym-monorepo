@@ -160,3 +160,25 @@
     min-height: 36vh;
   }
 }
+
+.fieldError {
+  margin: -0.3rem 0 0.25rem;
+  color: #c1121f;
+  font-size: 0.82rem;
+}
+
+.formMessage {
+  margin-top: 0.9rem;
+  color: #263142;
+  font-weight: 600;
+}
+
+.inlineLink {
+  color: #0f62fe;
+  text-decoration: underline;
+}
+
+.submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

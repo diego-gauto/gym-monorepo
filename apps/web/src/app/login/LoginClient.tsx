@@ -2,21 +2,26 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useForm } from "react-hook-form";
 import styles from "../auth/page.module.css";
 import {
-  buildCheckoutUrl,
-  findUserByEmail,
-  loginUser,
+  loginWithCredentials,
   persistOrigin,
   persistPlan,
   resolveOrigin,
   resolvePlan,
+  saveAuthSession,
 } from "../../lib/auth-flow";
 
 type Props = {
   initialPlan: string | null;
   initialOrigin: string | null;
+};
+
+type LoginFormValues = {
+  email: string;
+  password: string;
 };
 
 export default function LoginClient({ initialPlan, initialOrigin }: Props) {
@@ -32,59 +37,30 @@ export default function LoginClient({ initialPlan, initialOrigin }: Props) {
     return `/register?${params.toString()}`;
   }, [origin, planId]);
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    const email = String(formData.get("email") ?? "").trim();
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting, isValid },
+  } = useForm<LoginFormValues>({
+    mode: "onChange",
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+  });
 
-    if (!email) {
-      setMessage("Ingresá tu email para continuar.");
-      return;
-    }
-
-    const user = findUserByEmail(email);
-    if (!user) {
-      setMessage("No encontramos esa cuenta. Podés crearla desde register.");
-      return;
-    }
-
-    if (!user.emailVerified) {
-      setMessage("Debés verificar tu email antes de iniciar sesión.");
-      return;
-    }
+  const onSubmit = async (values: LoginFormValues) => {
+    setMessage(null);
 
     if (planId) persistPlan(planId);
     persistOrigin(origin);
 
-    loginUser({ email: user.email, role: user.role, origin });
-
-    if (user.role === "admin") {
-      router.push("/admin/dashboard");
-      return;
-    }
-
-    if (origin === "login_manual") {
-      router.push("/profile");
-      return;
-    }
-
-    if (!user.hasSubscription && !user.hasPaidPeriod) {
-      if (!planId) {
-        setMessage("ERROR DE FLUJO: faltó el plan seleccionado para ir a checkout.");
-        return;
-      }
-      router.push(buildCheckoutUrl(planId));
-      return;
-    }
-
-    if (user.hasSubscription) {
+    try {
+      const response = await loginWithCredentials(values);
+      saveAuthSession(response.access_token, response.user.email, response.user.role, origin);
       router.push("/");
-      return;
-    }
-
-    if (user.hasPaidPeriod && !user.hasSubscription) {
-      setMessage("Tu nueva suscripción se activará al finalizar el período ya abonado");
-      router.push("/");
+    } catch {
+      setMessage("Credenciales incorrectas. Revisá tu email y contraseña.");
     }
   };
 
@@ -97,20 +73,46 @@ export default function LoginClient({ initialPlan, initialOrigin }: Props) {
             <p>Entrá para continuar.</p>
           </header>
 
-          <form className={styles.form} onSubmit={handleSubmit}>
+          <form className={styles.form} onSubmit={handleSubmit(onSubmit)} noValidate>
             <label htmlFor="email">Email</label>
-            <input id="email" name="email" type="email" placeholder="tu@email.com" />
+            <input
+              id="email"
+              type="email"
+              placeholder="tu@email.com"
+              {...register("email", {
+                required: "El email es obligatorio",
+                pattern: {
+                  value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                  message: "Ingresá un email válido",
+                },
+              })}
+            />
+            {errors.email && <p className={styles.fieldError}>{errors.email.message}</p>}
 
             <label htmlFor="password">Contraseña</label>
-            <input id="password" name="password" type="password" placeholder="********" />
+            <input
+              id="password"
+              type="password"
+              placeholder="********"
+              {...register("password", {
+                required: "La contraseña es obligatoria",
+              })}
+            />
+            {errors.password && <p className={styles.fieldError}>{errors.password.message}</p>}
 
-            <button type="submit" className={styles.submit}>Ingresar</button>
+            <button type="submit" className={styles.submit} disabled={!isValid || isSubmitting}>
+              {isSubmitting ? "Ingresando..." : "Ingresar"}
+            </button>
           </form>
 
-          {message && <p>{message}</p>}
+          {message && <p className={styles.formMessage}>{message}</p>}
 
-          <div className={styles.separator}><span>o</span></div>
-          <Link href={registerHref} className={styles.googleButton}>No tengo cuenta, ir a register</Link>
+          <div className={styles.separator}>
+            <span>o</span>
+          </div>
+          <Link href={registerHref} className={styles.googleButton}>
+            No tengo cuenta / Registrarme
+          </Link>
         </div>
       </section>
     </main>

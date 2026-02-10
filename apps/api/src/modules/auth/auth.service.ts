@@ -1,10 +1,10 @@
-import { Injectable, ConflictException, ForbiddenException, BadRequestException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, ConflictException, BadRequestException, UnauthorizedException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { randomBytes, createHash } from 'crypto';
+import { createHash } from 'crypto';
 import { User } from '../users/entities/user.entity';
 import { RegisterDto } from './dto/register.dto';
 import { MembershipStatus } from '@gym-admin/shared';
@@ -28,10 +28,6 @@ export class AuthService {
     if (!user || !user.password) return null;
 
     if (await bcrypt.compare(pass, user.password)) {
-      if (user.authProvider === 'LOCAL' && !user.emailVerifiedAt) {
-        throw new ForbiddenException('EMAIL_NOT_VERIFIED');
-      }
-
       const { password, ...result } = user;
       return result;
     }
@@ -49,24 +45,15 @@ export class AuthService {
     };
     return {
       access_token: this.jwtService.sign(payload),
+      user: {
+        email: user.email,
+        role: user.role,
+      },
     };
   }
 
   private hashToken(token: string): string {
     return createHash('sha256').update(token).digest('hex');
-  }
-
-  private async issueEmailVerification(user: User) {
-    const rawToken = randomBytes(32).toString('hex');
-    const tokenHash = this.hashToken(rawToken);
-    const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24);
-
-    await this.userRepository.update(user.id, {
-      emailVerificationTokenHash: tokenHash,
-      emailVerificationTokenExpiresAt: expiresAt,
-    });
-
-    return rawToken;
   }
 
   async register(registerDto: RegisterDto): Promise<Record<string, unknown>> {
@@ -92,18 +79,15 @@ export class AuthService {
       phone,
       password: hashedPassword,
       authProvider: 'LOCAL',
-      emailVerifiedAt: null,
-      status: MembershipStatus.EXPIRED,
+      emailVerifiedAt: new Date(),
+      status: MembershipStatus.ACTIVE,
+      emailVerificationTokenHash: null,
+      emailVerificationTokenExpiresAt: null,
     });
 
     const savedUser = await this.userRepository.save(user);
-    const verificationToken = await this.issueEmailVerification(savedUser);
 
-    return {
-      message: 'Te enviamos un email para verificar tu cuenta',
-      email: savedUser.email,
-      ...(process.env.NODE_ENV !== 'production' ? { verificationToken } : {}),
-    };
+    return this.login(savedUser);
   }
 
   async verifyEmail(token: string) {
@@ -132,27 +116,8 @@ export class AuthService {
     return { message: 'Email verified successfully' };
   }
 
-  async resendVerification(email: string) {
-    const normalizedEmail = email.toLowerCase();
-    const user = await this.userRepository.findOne({
-      where: { email: normalizedEmail },
-      select: ['id', 'email', 'authProvider', 'emailVerifiedAt'],
-    });
-
-    if (!user || user.authProvider !== 'LOCAL') {
-      return { message: 'If the account exists, a verification email has been sent.' };
-    }
-
-    if (user.emailVerifiedAt) {
-      return { message: 'Email already verified.' };
-    }
-
-    const verificationToken = await this.issueEmailVerification(user as User);
-
-    return {
-      message: 'If the account exists, a verification email has been sent.',
-      ...(process.env.NODE_ENV !== 'production' ? { verificationToken } : {}),
-    };
+  async resendVerification(_email?: string) {
+    return { message: 'La verificación por email no está habilitada en este flujo.' };
   }
 
   private async verifyGoogleToken(idToken: string) {
