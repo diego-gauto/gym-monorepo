@@ -17,11 +17,20 @@ export class User implements IUser {
   @Column()
   name!: string;
 
+  @Column({ name: 'first_name', type: 'varchar', nullable: true })
+  firstName?: string | null;
+
+  @Column({ name: 'last_name', type: 'varchar', nullable: true })
+  lastName?: string | null;
+
   @Column({ unique: true })
   email!: string;
 
   @Column({ unique: true, nullable: true })
-  dni!: string;
+  dni?: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  phone?: string | null;
 
   @Column({ select: false, nullable: true }) // Don't return password by default
   password?: string;

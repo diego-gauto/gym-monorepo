@@ -4,8 +4,11 @@ export interface IUser {
   id: number; // BigInt (Internal)
   uuid: string; // Public UUID
   name: string;
+  firstName?: string | null;
+  lastName?: string | null;
   email: string;
-  dni: string;
+  phone?: string | null;
+  dni?: string | null;
   password?: string; // Optional in interface, required in DB
   status: MembershipStatus;
   role: 'ADMIN' | 'USER';

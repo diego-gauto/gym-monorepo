@@ -2,8 +2,7 @@
 
 import React, { useMemo, useState } from "react";
 import styles from "./Plans.module.css";
-
-type PlanId = "monthly" | "quarterly" | "yearly";
+import { buildCheckoutUrl, persistOrigin, persistPlan, type PlanId } from "../../lib/auth-flow";
 
 type BillingContext = {
   isAuthenticated: boolean;
@@ -22,12 +21,7 @@ const PLANS = [
     name: "Mensual",
     description: "Ideal para empezar tu transformación",
     monthlyNumeric: 15000,
-    features: [
-      "Acceso completo al gimnasio",
-      "Uso de equipamiento premium",
-      "Vestuarios con lockers",
-      "WiFi gratis",
-    ],
+    features: ["Acceso completo al gimnasio", "Uso de equipamiento premium", "Vestuarios con lockers", "WiFi gratis"],
     highlight: false,
   },
   {
@@ -82,43 +76,33 @@ function formatDate(dateLike?: string | null): string {
   }).format(date);
 }
 
-function buildCheckoutUrl(planId: PlanId, mode?: "scheduled_change" | "deferred_activation") {
-  const params = new URLSearchParams({ plan: planId });
-  if (mode) params.set("mode", mode);
-  return `/checkout/mercadopago?${params.toString()}`;
-}
-
-function buildRegisterUrl(planId: PlanId) {
-  const checkout = buildCheckoutUrl(planId);
-  const params = new URLSearchParams({
-    plan: planId,
-    next: checkout,
-  });
-  return `/register?${params.toString()}`;
-}
-
 export default function Plans() {
   const [dialog, setDialog] = useState<DialogState>({ kind: "none" });
 
   const billingContext = useMemo<BillingContext>(() => {
-    if (typeof window === "undefined") {
-      return { isAuthenticated: false };
-    }
+    if (typeof window === "undefined") return { isAuthenticated: false };
 
-    const globalContext = (window as Window & { __GYM_BILLING_CONTEXT__?: BillingContext })
-      .__GYM_BILLING_CONTEXT__;
+    const globalContext = (window as Window & { __GYM_BILLING_CONTEXT__?: BillingContext }).__GYM_BILLING_CONTEXT__;
 
     return globalContext ?? { isAuthenticated: false };
   }, []);
 
   const goToCheckout = (planId: PlanId, mode?: "scheduled_change" | "deferred_activation") => {
-    window.location.href = buildCheckoutUrl(planId, mode);
+    const checkoutUrl = buildCheckoutUrl(planId);
+    if (mode) {
+      const params = new URLSearchParams({ plan: planId, mode });
+      window.location.href = `/checkout/mercadopago?${params.toString()}`;
+      return;
+    }
+    window.location.href = checkoutUrl;
   };
 
   const handleChoosePlan = (planId: PlanId) => {
+    persistPlan(planId);
+    persistOrigin("elegir_plan");
+
     if (!billingContext.isAuthenticated) {
-      localStorage.setItem("gym.selectedPlan", planId);
-      window.location.href = buildRegisterUrl(planId);
+      window.location.href = `/register?plan=${planId}&origin=elegir_plan`;
       return;
     }
 
@@ -144,10 +128,7 @@ export default function Plans() {
         </h2>
         <div className={styles.grid}>
           {PLANS.map((plan) => (
-            <div
-              key={plan.id}
-              className={`${styles.card} ${plan.highlight ? styles.highlighted : ""}`}
-            >
+            <div key={plan.id} className={`${styles.card} ${plan.highlight ? styles.highlighted : ""}`}>
               {plan.badge && <span className={styles.badge}>{plan.badge}</span>}
               <div className={styles.planHeader}>
                 <h3 className={styles.planName}>{plan.name}</h3>
@@ -158,33 +139,19 @@ export default function Plans() {
                   <span className={styles.currency}>$</span>
                   <span className={styles.amount}>
                     {formatNumber(
-                      plan.id === "monthly"
-                        ? plan.monthlyNumeric
-                        : plan.id === "quarterly"
-                          ? plan.monthlyNumeric * 3
-                          : plan.monthlyNumeric * 12,
+                      plan.id === "monthly" ? plan.monthlyNumeric : plan.id === "quarterly" ? plan.monthlyNumeric * 3 : plan.monthlyNumeric * 12,
                     )}
                   </span>
-                  {plan.id === "monthly" && (
-                    <span className={styles.period}>/mes</span>
-                  )}
+                  {plan.id === "monthly" && <span className={styles.period}>/mes</span>}
                 </div>
-                <div className={styles.priceSub}>
-                  {plan.id === "monthly"
-                    ? "\u00a0"
-                    : `te queda en $${formatNumber(plan.monthlyNumeric)} / mes`}
-                </div>
+                <div className={styles.priceSub}>{plan.id === "monthly" ? "\u00a0" : `te queda en $${formatNumber(plan.monthlyNumeric)} / mes`}</div>
               </div>
               <ul className={styles.features}>
                 {plan.features.map((f, i) => (
                   <li key={i}>{f}</li>
                 ))}
               </ul>
-              <button
-                type="button"
-                className={styles.ctaSecondary}
-                onClick={() => handleChoosePlan(plan.id)}
-              >
+              <button type="button" className={styles.ctaSecondary} onClick={() => handleChoosePlan(plan.id)}>
                 Elegir Plan
               </button>
             </div>
@@ -199,22 +166,13 @@ export default function Plans() {
               <>
                 <h3 className={styles.modalTitle}>Ya tenés una suscripción activa</h3>
                 <p className={styles.modalText}>
-                  Podés hacer upgrade o downgrade sin interrupciones. El cambio se hará efectivo al terminar
-                  el período actual ({formatDate(dialog.endDate)}).
+                  Podés hacer upgrade o downgrade sin interrupciones. El cambio se hará efectivo al terminar el período actual ({formatDate(dialog.endDate)}).
                 </p>
                 <div className={styles.modalActions}>
-                  <button
-                    type="button"
-                    className={styles.modalButtonPrimary}
-                    onClick={() => goToCheckout(dialog.planId, "scheduled_change")}
-                  >
+                  <button type="button" className={styles.modalButtonPrimary} onClick={() => goToCheckout(dialog.planId, "scheduled_change")}>
                     Solicitar cambio de plan
                   </button>
-                  <button
-                    type="button"
-                    className={styles.modalButtonSecondary}
-                    onClick={() => setDialog({ kind: "none" })}
-                  >
+                  <button type="button" className={styles.modalButtonSecondary} onClick={() => setDialog({ kind: "none" })}>
                     Entendido
                   </button>
                 </div>
@@ -225,22 +183,13 @@ export default function Plans() {
               <>
                 <h3 className={styles.modalTitle}>Tenés un período pago vigente</h3>
                 <p className={styles.modalText}>
-                  Tu nuevo plan se activará cuando termine el período abonado ({formatDate(dialog.endDate)}).
-                  No se aplicarán dobles cobros.
+                  Tu nueva suscripción se activará al finalizar el período ya abonado ({formatDate(dialog.endDate)}).
                 </p>
                 <div className={styles.modalActions}>
-                  <button
-                    type="button"
-                    className={styles.modalButtonPrimary}
-                    onClick={() => goToCheckout(dialog.planId, "deferred_activation")}
-                  >
-                    Continuar a Mercado Pago
+                  <button type="button" className={styles.modalButtonPrimary} onClick={() => goToCheckout(dialog.planId, "deferred_activation")}>
+                    Continuar a checkout
                   </button>
-                  <button
-                    type="button"
-                    className={styles.modalButtonSecondary}
-                    onClick={() => setDialog({ kind: "none" })}
-                  >
+                  <button type="button" className={styles.modalButtonSecondary} onClick={() => setDialog({ kind: "none" })}>
                     Volver
                   </button>
                 </div>

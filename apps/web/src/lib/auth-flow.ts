@@ -1,6 +1,33 @@
 export type PlanId = "monthly" | "quarterly" | "yearly";
+export type LoginOrigin = "elegir_plan" | "login_manual";
+export type UserRole = "user" | "admin";
+
+export type StoredUser = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  password: string;
+  emailVerified: boolean;
+  role: UserRole;
+  hasSubscription: boolean;
+  hasPaidPeriod: boolean;
+};
+
+export type SessionUser = {
+  email: string;
+  role: UserRole;
+  origin: LoginOrigin;
+};
 
 const VALID_PLANS = new Set<PlanId>(["monthly", "quarterly", "yearly"]);
+
+const STORAGE = {
+  selectedPlan: "gym.selectedPlan",
+  origin: "gym.loginOrigin",
+  users: "gym.users",
+  session: "gym.session",
+} as const;
 
 export function isPlanId(value: string | null): value is PlanId {
   return value !== null && VALID_PLANS.has(value as PlanId);
@@ -13,27 +40,35 @@ export function buildCheckoutUrl(planId: PlanId) {
 export function resolvePlan(planFromQuery: string | null): PlanId | null {
   if (isPlanId(planFromQuery)) return planFromQuery;
   if (typeof window === "undefined") return null;
-  const stored = window.localStorage.getItem("gym.selectedPlan");
+  const stored = window.localStorage.getItem(STORAGE.selectedPlan);
   return isPlanId(stored) ? stored : null;
-}
-
-export function buildAuthParams(planId: PlanId, next?: string | null) {
-  const params = new URLSearchParams();
-  params.set("plan", planId);
-  params.set("next", next && next.trim().length > 0 ? next : buildCheckoutUrl(planId));
-  return params;
 }
 
 export function persistPlan(planId: PlanId) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem("gym.selectedPlan", planId);
+  window.localStorage.setItem(STORAGE.selectedPlan, planId);
 }
 
-type StoredUser = { email: string; password: string };
+export function clearSelectedPlan() {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(STORAGE.selectedPlan);
+}
+
+export function persistOrigin(origin: LoginOrigin) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(STORAGE.origin, origin);
+}
+
+export function resolveOrigin(originFromQuery: string | null): LoginOrigin {
+  if (originFromQuery === "elegir_plan" || originFromQuery === "login_manual") return originFromQuery;
+  if (typeof window === "undefined") return "login_manual";
+  const stored = window.localStorage.getItem(STORAGE.origin);
+  return stored === "elegir_plan" || stored === "login_manual" ? stored : "login_manual";
+}
 
 function loadUsers(): StoredUser[] {
   if (typeof window === "undefined") return [];
-  const raw = window.localStorage.getItem("gym.users");
+  const raw = window.localStorage.getItem(STORAGE.users);
   if (!raw) return [];
   try {
     const parsed = JSON.parse(raw) as StoredUser[];
@@ -45,20 +80,58 @@ function loadUsers(): StoredUser[] {
 
 function saveUsers(users: StoredUser[]) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem("gym.users", JSON.stringify(users));
+  window.localStorage.setItem(STORAGE.users, JSON.stringify(users));
 }
 
 export function findUserByEmail(email: string) {
   return loadUsers().find((user) => user.email.toLowerCase() === email.toLowerCase()) ?? null;
 }
 
-export function createUser(email: string, password: string) {
+export function createUser(user: Omit<StoredUser, "emailVerified" | "role" | "hasSubscription" | "hasPaidPeriod">) {
   const users = loadUsers();
-  users.push({ email, password });
+  users.push({
+    ...user,
+    emailVerified: false,
+    role: "user",
+    hasSubscription: false,
+    hasPaidPeriod: false,
+  });
   saveUsers(users);
 }
 
-export function loginUser(email: string) {
+export function verifyUserEmail(email: string) {
+  const users = loadUsers();
+  const nextUsers = users.map((u) =>
+    u.email.toLowerCase() === email.toLowerCase()
+      ? { ...u, emailVerified: true }
+      : u,
+  );
+  saveUsers(nextUsers);
+}
+
+export function loginUser(session: SessionUser) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem("gym.session", JSON.stringify({ email }));
+  window.localStorage.setItem(STORAGE.session, JSON.stringify(session));
+}
+
+export function getSession(): SessionUser | null {
+  if (typeof window === "undefined") return null;
+  const raw = window.localStorage.getItem(STORAGE.session);
+  if (!raw) return null;
+
+  try {
+    const parsed = JSON.parse(raw) as SessionUser;
+    if (!parsed?.email) return null;
+    if (parsed.role !== "user" && parsed.role !== "admin") return null;
+    if (parsed.origin !== "elegir_plan" && parsed.origin !== "login_manual") return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export function getLoggedInUser(): StoredUser | null {
+  const session = getSession();
+  if (!session) return null;
+  return findUserByEmail(session.email);
 }

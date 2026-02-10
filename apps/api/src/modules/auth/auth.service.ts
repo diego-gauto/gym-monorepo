@@ -69,33 +69,39 @@ export class AuthService {
   }
 
   async register(registerDto: RegisterDto): Promise<Record<string, unknown>> {
-    const { email, dni, password, name } = registerDto;
+    const { email, firstName, lastName, phone, password, confirmPassword } = registerDto;
     const normalizedEmail = email.toLowerCase();
 
-    const existingUser = await this.userRepository.findOne({
-      where: [{ email: normalizedEmail }, { dni }],
-    });
+    if (password !== confirmPassword) {
+      throw new BadRequestException('Passwords do not match');
+    }
+
+    const existingUser = await this.userRepository.findOne({ where: [{ email: normalizedEmail }] });
 
     if (existingUser) {
-      throw new ConflictException('User with this email or DNI already exists');
+      throw new ConflictException('User with this email already exists');
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const user = this.userRepository.create({
-      name,
+      name: `${firstName} ${lastName}`.trim(),
+      firstName,
+      lastName,
       email: normalizedEmail,
-      dni,
+      phone,
+      dni: null,
       password: hashedPassword,
       authProvider: 'LOCAL',
       emailVerifiedAt: null,
+      status: 'EXPIRED',
     });
 
     const savedUser = await this.userRepository.save(user);
     const verificationToken = await this.issueEmailVerification(savedUser);
 
     return {
-      message: 'User registered. Verify your email before login.',
+      message: 'Te enviamos un email para verificar tu cuenta',
       email: savedUser.email,
       ...(process.env.NODE_ENV !== 'production' ? { verificationToken } : {}),
     };
@@ -121,6 +127,7 @@ export class AuthService {
       emailVerifiedAt: new Date(),
       emailVerificationTokenHash: null,
       emailVerificationTokenExpiresAt: null,
+      status: 'ACTIVE',
     });
 
     return { message: 'Email verified successfully' };
