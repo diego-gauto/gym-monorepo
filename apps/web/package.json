@@ -12,7 +12,8 @@
     "@gym-admin/shared": "workspace:*",
     "next": "^16.1.5",
     "react": "^19.2.4",
-    "react-dom": "^19.2.4"
+    "react-dom": "^19.2.4",
+    "react-hook-form": "^7.71.1"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
