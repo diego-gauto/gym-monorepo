@@ -1,11 +1,13 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
+import { DataSourceOptions } from 'typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
 import { BillingModule } from './modules/billing/billing.module';
 import { AccessModule } from './modules/access/access.module';
 import { UsersModule } from './modules/users/users.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { purgeInvalidUsersBeforeSync } from './database-preflight';
 
 @Module({
   imports: [
@@ -17,11 +19,11 @@ import { AuthModule } from './modules/auth/auth.module';
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => {
+      useFactory: async (configService: ConfigService) => {
         const isProduction = configService.get('NODE_ENV') === 'production';
         const databaseUrl = configService.get('DATABASE_URL');
 
-        return {
+        const typeOrmConfig: TypeOrmModuleOptions = {
           type: 'postgres',
           url: databaseUrl, // Use URL if available (Production/Neon)
           host: configService.get('DB_HOST'),
@@ -33,6 +35,12 @@ import { AuthModule } from './modules/auth/auth.module';
           synchronize: !isProduction, // True ONLY in development
           ssl: isProduction ? { rejectUnauthorized: false } : false,
         };
+
+        if (!isProduction) {
+          await purgeInvalidUsersBeforeSync(typeOrmConfig as DataSourceOptions);
+        }
+
+        return typeOrmConfig;
       },
     }),
     BillingModule,
