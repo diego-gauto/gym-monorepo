@@ -62,7 +62,7 @@ Esto mantiene consistencia para ACL, pagos y acceso físico.
 ## 3) Flujo completo de autenticación
 
 ### Registro local
-1. Usuario envía nombre/email/dni/password.
+1. Usuario envía firstName/lastName/email/password.
 2. Backend normaliza email, hashea password (bcrypt).
 3. Crea usuario con `emailVerifiedAt=null`.
 4. Genera token de verificación (guardar hash + expiración).

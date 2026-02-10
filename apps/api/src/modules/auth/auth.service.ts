@@ -86,12 +86,10 @@ export class AuthService {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const user = this.userRepository.create({
-      name: `${firstName} ${lastName}`.trim(),
       firstName,
       lastName,
       email: normalizedEmail,
       phone,
-      dni: null,
       password: hashedPassword,
       authProvider: 'LOCAL',
       emailVerifiedAt: null,
@@ -170,6 +168,8 @@ export class AuthService {
       email?: string;
       email_verified?: string;
       name?: string;
+      given_name?: string;
+      family_name?: string;
     };
 
     if (data.aud !== googleClientId || !data.email || !data.sub) {
@@ -190,11 +190,15 @@ export class AuthService {
     let user = await this.userRepository.findOne({ where: [{ googleSub: google.sub }, { email }] });
 
     if (!user) {
-      const generatedDni = `${Math.floor(10000000 + Math.random() * 89999999)}`;
+      const fallbackName = google.name || email.split('@')[0];
+      const nameParts = fallbackName.trim().split(/\s+/);
+      const derivedFirstName = (google.given_name || nameParts[0] || 'Usuario').trim();
+      const derivedLastName = (google.family_name || nameParts.slice(1).join(' ') || '-').trim();
+
       const newUser = this.userRepository.create({
-        name: google.name || email.split('@')[0],
+        firstName: derivedFirstName,
+        lastName: derivedLastName,
         email,
-        dni: generatedDni,
         authProvider: 'GOOGLE',
         googleSub: google.sub,
         emailVerifiedAt: new Date(),

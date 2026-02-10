@@ -3,12 +3,10 @@ import { MembershipStatus, PaymentMethod, InvoiceStatus } from '../index';
 export interface IUser {
   id: number; // BigInt (Internal)
   uuid: string; // Public UUID
-  name: string;
-  firstName?: string | null;
-  lastName?: string | null;
+  firstName: string;
+  lastName: string;
   email: string;
   phone?: string | null;
-  dni?: string | null;
   password?: string; // Optional in interface, required in DB
   status: MembershipStatus;
   role: 'ADMIN' | 'USER';
@@ -19,6 +17,15 @@ export interface IUser {
   cardIssuer?: string;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface IRegisterRequest {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  password: string;
+  confirmPassword: string;
 }
 
 export interface ISubscription {

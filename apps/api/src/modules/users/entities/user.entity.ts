@@ -14,20 +14,14 @@ export class User implements IUser {
   @Index({ unique: true })
   uuid!: string;
 
-  @Column()
-  name!: string;
+  @Column({ name: 'first_name', type: 'varchar' })
+  firstName!: string;
 
-  @Column({ name: 'first_name', type: 'varchar', nullable: true })
-  firstName?: string | null;
-
-  @Column({ name: 'last_name', type: 'varchar', nullable: true })
-  lastName?: string | null;
+  @Column({ name: 'last_name', type: 'varchar' })
+  lastName!: string;
 
   @Column({ unique: true })
   email!: string;
-
-  @Column({ unique: true, nullable: true })
-  dni!: string | null;
 
   @Column({ type: 'varchar', nullable: true })
   phone?: string | null;
