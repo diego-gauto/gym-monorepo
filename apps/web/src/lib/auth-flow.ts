@@ -1,13 +1,12 @@
+import { IRegisterRequest } from "@gym-admin/shared";
+
 export type PlanId = "monthly" | "quarterly" | "yearly";
 export type LoginOrigin = "elegir_plan" | "login_manual";
 export type UserRole = "user" | "admin";
 
-export type StoredUser = {
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
-  password: string;
+type RegisterUserBase = Omit<IRegisterRequest, "confirmPassword">;
+
+export type StoredUser = RegisterUserBase & {
   emailVerified: boolean;
   role: UserRole;
   hasSubscription: boolean;
@@ -87,7 +86,7 @@ export function findUserByEmail(email: string) {
   return loadUsers().find((user) => user.email.toLowerCase() === email.toLowerCase()) ?? null;
 }
 
-export function createUser(user: Omit<StoredUser, "emailVerified" | "role" | "hasSubscription" | "hasPaidPeriod">) {
+export function createUser(user: RegisterUserBase) {
   const users = loadUsers();
   users.push({
     ...user,

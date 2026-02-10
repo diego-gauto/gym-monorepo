@@ -1,6 +1,7 @@
 import { IsEmail, IsNotEmpty, IsString, Matches, MinLength } from 'class-validator';
+import { IRegisterRequest } from '@gym-admin/shared';
 
-export class RegisterDto {
+export class RegisterDto implements IRegisterRequest {
   @IsNotEmpty()
   @IsString()
   firstName!: string;
