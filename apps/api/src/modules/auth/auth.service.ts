@@ -7,6 +7,7 @@ import { ConfigService } from '@nestjs/config';
 import { randomBytes, createHash } from 'crypto';
 import { User } from '../users/entities/user.entity';
 import { RegisterDto } from './dto/register.dto';
+import { MembershipStatus } from '@gym-admin/shared';
 
 @Injectable()
 export class AuthService {
@@ -94,7 +95,7 @@ export class AuthService {
       password: hashedPassword,
       authProvider: 'LOCAL',
       emailVerifiedAt: null,
-      status: 'EXPIRED',
+      status: MembershipStatus.EXPIRED,
     });
 
     const savedUser = await this.userRepository.save(user);
@@ -127,7 +128,7 @@ export class AuthService {
       emailVerifiedAt: new Date(),
       emailVerificationTokenHash: null,
       emailVerificationTokenExpiresAt: null,
-      status: 'ACTIVE',
+      status: MembershipStatus.ACTIVE,
     });
 
     return { message: 'Email verified successfully' };
