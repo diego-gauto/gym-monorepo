@@ -2,11 +2,11 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThanOrEqual } from 'typeorm';
-import { subDays, startOfDay, endOfDay } from 'date-fns';
+import { subDays, startOfDay, endOfDay, getDate } from 'date-fns';
 import { Subscription } from './entities/subscription.entity';
 import { Invoice } from './entities/invoice.entity';
 import { User } from '../users/entities/user.entity';
-import { MembershipStatus, PaymentMethod } from '@gym-admin/shared';
+import { CurrencyCode, MembershipStatus, PaymentMethod, SubscriptionChangeRequestStatus } from '@gym-admin/shared';
 import { randomUUID } from 'crypto';
 const uuidv4 = randomUUID;
 
@@ -50,28 +50,61 @@ export class BillingCronService {
 
     const pendingChanges = await this.changeRequestRepository.find({
       where: {
-        status: 'PENDING',
+        status: SubscriptionChangeRequestStatus.PENDING,
         effectiveAt: LessThanOrEqual(todayEnd),
       },
-      relations: ['subscription'],
+      relations: ['subscription', 'user'],
     });
 
     for (const change of pendingChanges) {
-      this.logger.log(`Applying change request ${change.uuid} for subscription ${change.subscription.uuid}`);
-      
-      if (change.newPlanId) {
-        this.logger.log(`Changing plan from ${change.subscription.planId} to ${change.newPlanId}`);
-        change.subscription.planId = change.newPlanId;
-      }
+      if (change.subscription) {
+        this.logger.log(`Applying change request ${change.uuid} for subscription ${change.subscription.uuid}`);
 
-      if (change.newAutoRenew !== undefined && change.newAutoRenew !== null) {
-        this.logger.log(`Changing autoRenew from ${change.subscription.autoRenew} to ${change.newAutoRenew}`);
-        change.subscription.autoRenew = change.newAutoRenew;
-      }
+        if (change.newPlanId) {
+          this.logger.log(`Changing plan from ${change.subscription.planId} to ${change.newPlanId}`);
+          change.subscription.planId = change.newPlanId;
+        }
 
-      await this.subscriptionRepository.save(change.subscription);
+        if (change.newAutoRenew !== undefined && change.newAutoRenew !== null) {
+          this.logger.log(`Changing autoRenew from ${change.subscription.autoRenew} to ${change.newAutoRenew}`);
+          change.subscription.autoRenew = change.newAutoRenew;
+        }
+
+        await this.subscriptionRepository.save(change.subscription);
+      } else {
+        if (!change.newPlanId) {
+          this.logger.warn(`Skipping change request ${change.uuid}: missing plan for deferred creation.`);
+          change.status = SubscriptionChangeRequestStatus.CANCELLED;
+          await this.changeRequestRepository.save(change);
+          continue;
+        }
+
+        this.logger.log(`Creating deferred subscription from request ${change.uuid} for user ${change.userId}`);
+        const startDate = new Date(change.effectiveAt);
+        const anchorDay = getDate(startDate);
+        const endDate = this.subscriptionsService.calculateNextExpiration(anchorDay, change.newPlanId, startDate);
+
+        const subscription = this.subscriptionRepository.create({
+          userId: change.userId,
+          planId: change.newPlanId,
+          billingCycleAnchorDay: anchorDay,
+          autoRenew: change.newAutoRenew ?? true,
+          status: MembershipStatus.ACTIVE,
+          startDate,
+          endDate,
+        });
+
+        const savedSubscription = await this.subscriptionRepository.save(subscription);
+        change.subscriptionId = savedSubscription.id;
+
+        const user = change.user || await this.userRepository.findOne({ where: { id: change.userId } });
+        if (user) {
+          user.status = MembershipStatus.ACTIVE;
+          await this.userRepository.save(user);
+        }
+      }
       
-      change.status = 'APPLIED';
+      change.status = SubscriptionChangeRequestStatus.APPLIED;
       await this.changeRequestRepository.save(change);
     }
   }
@@ -98,7 +131,7 @@ export class BillingCronService {
         userId: sub.userId,
         subscriptionId: sub.id,
         amount: 50.00, // Should fetch plan price
-        currency: 'ARS',
+        currency: CurrencyCode.ARS,
         status: InvoiceStatus.PENDING,
         paymentMethod: PaymentMethod.MP_CARD,
         idempotencyKey: uuidv4(), // Initial ID key
@@ -138,14 +171,15 @@ export class BillingCronService {
   private async attemptPayment(invoice: Invoice, sub: Subscription) {
     const user = await this.userRepository.findOne({ where: { id: sub.userId } });
 
-    if (!user || !user.mercadopagoCardId) {
+    const cardId = user?.billingProfile?.mercadopagoCardId;
+    if (!user || !cardId) {
       this.logger.warn(`Skipping payment for user ${user?.email || sub.userId}: No MP Card ID found.`);
       return;
     }
 
     try {
       this.logger.log(`Executing MP payment attempt for Invoice ${invoice.uuid} (User: ${user.email})`);
-      const result = await this.paymentsService.processPayment(invoice, user.mercadopagoCardId, user.email);
+      const result = await this.paymentsService.processPaymentWithSavedCard(invoice, user);
 
       if (result.status === 'approved') {
         this.logger.log(`Payment SUCCESS for invoice ${invoice.uuid}. MP Payment ID: ${result.id}`);

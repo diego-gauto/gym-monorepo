@@ -21,10 +21,30 @@ export enum InvoiceStatus {
   VOIDED = 'VOIDED',
 }
 
+export enum CurrencyCode {
+  ARS = 'ARS',
+}
+
 export enum PlanType {
   MONTHLY = 'MONTHLY',
   QUARTERLY = 'QUARTERLY',
   YEARLY = 'YEARLY',
+}
+
+export enum AuthProvider {
+  LOCAL = 'LOCAL',
+  GOOGLE = 'GOOGLE',
+}
+
+export enum UserRole {
+  ADMIN = 'ADMIN',
+  USER = 'USER',
+}
+
+export enum SubscriptionChangeRequestStatus {
+  PENDING = 'PENDING',
+  APPLIED = 'APPLIED',
+  CANCELLED = 'CANCELLED',
 }
 
 export * from './interfaces';

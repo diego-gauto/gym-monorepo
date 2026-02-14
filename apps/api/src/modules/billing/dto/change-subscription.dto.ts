@@ -1,9 +1,10 @@
-import { IsString, IsNotEmpty, IsDateString } from 'class-validator';
+import { IsDateString, IsEnum, IsNotEmpty } from 'class-validator';
+import { IChangeSubscriptionRequest, PlanType } from '@gym-admin/shared';
 
-export class ChangeSubscriptionDto {
-  @IsString()
+export class ChangeSubscriptionDto implements IChangeSubscriptionRequest {
+  @IsEnum(PlanType)
   @IsNotEmpty()
-  newPlanId!: string;
+  newPlanId!: PlanType;
 
   @IsDateString()
   @IsNotEmpty()

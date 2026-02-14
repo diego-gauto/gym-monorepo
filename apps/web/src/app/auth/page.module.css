@@ -7,7 +7,7 @@
 
 .visualPanel {
   position: relative;
-  background-image: url('/hero-bg.png');
+  background-image: url('/register-gym-vertical.svg');
   background-size: cover;
   background-position: center;
   display: flex;

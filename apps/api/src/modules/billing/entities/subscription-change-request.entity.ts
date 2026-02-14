@@ -1,6 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn, Generated, Index } from 'typeorm';
-import { ISubscriptionChangeRequest } from '@gym-admin/shared';
+import { ISubscriptionChangeRequest, PlanType, SubscriptionChangeRequestStatus } from '@gym-admin/shared';
 import { Subscription } from './subscription.entity';
+import { User } from '../../users/entities/user.entity';
 
 @Entity('subscription_change_requests')
 export class SubscriptionChangeRequest implements ISubscriptionChangeRequest {
@@ -12,25 +13,32 @@ export class SubscriptionChangeRequest implements ISubscriptionChangeRequest {
   @Index({ unique: true })
   uuid!: string;
 
-  @Column({ name: 'subscription_id', type: 'bigint' })
-  subscriptionId!: number;
+  @Column({ name: 'user_id', type: 'bigint' })
+  userId!: number;
+
+  @ManyToOne(() => User)
+  @JoinColumn({ name: 'user_id' })
+  user!: User;
+
+  @Column({ name: 'subscription_id', type: 'bigint', nullable: true })
+  subscriptionId?: number | null;
 
   @ManyToOne(() => Subscription)
   @JoinColumn({ name: 'subscription_id' })
-  subscription!: Subscription;
+  subscription?: Subscription;
 
   @Column({ name: 'new_plan_id', nullable: true })
-  newPlanId?: string;
+  newPlanId?: PlanType;
 
   @Column({ name: 'new_auto_renew', type: 'boolean', nullable: true })
   newAutoRenew?: boolean;
 
   @Column({
     type: 'simple-enum',
-    enum: ['PENDING', 'APPLIED', 'CANCELLED'],
-    default: 'PENDING'
+    enum: SubscriptionChangeRequestStatus,
+    default: SubscriptionChangeRequestStatus.PENDING,
   })
-  status!: 'PENDING' | 'APPLIED' | 'CANCELLED';
+  status!: SubscriptionChangeRequestStatus;
 
   @Column({ name: 'effective_at' })
   effectiveAt!: Date;

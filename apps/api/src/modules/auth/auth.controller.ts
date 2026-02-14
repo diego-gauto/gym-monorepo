@@ -6,6 +6,7 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { ResendVerificationDto } from './dto/resend-verification.dto';
 import { GoogleAuthDto } from './dto/google-auth.dto';
+import { GoogleCodeAuthDto } from './dto/google-code-auth.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -39,6 +40,12 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async google(@Body() dto: GoogleAuthDto) {
     return this.authService.loginWithGoogle(dto.idToken);
+  }
+
+  @Post('google/code')
+  @HttpCode(HttpStatus.OK)
+  async googleWithCode(@Body() dto: GoogleCodeAuthDto) {
+    return this.authService.loginWithGoogleCode(dto.code, dto.redirectUri);
   }
 
   @UseGuards(JwtAuthGuard)

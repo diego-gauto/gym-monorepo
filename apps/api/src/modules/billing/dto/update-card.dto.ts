@@ -1,6 +1,7 @@
-import { IsString, IsNotEmpty, IsOptional, Length } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, Length, IsInt, Min, Max } from 'class-validator';
+import { IUpdateCardRequest } from '@gym-admin/shared';
 
-export class UpdateCardDto {
+export class UpdateCardDto implements IUpdateCardRequest {
   @IsString()
   @IsNotEmpty()
   mercadopagoCardId!: string;
@@ -21,4 +22,20 @@ export class UpdateCardDto {
   @IsString()
   @IsOptional()
   mercadopagoCustomerId?: string;
+
+  @IsString()
+  @IsOptional()
+  cardholderName?: string;
+
+  @IsInt()
+  @Min(1)
+  @Max(12)
+  @IsOptional()
+  cardExpirationMonth?: number;
+
+  @IsInt()
+  @Min(2000)
+  @Max(2999)
+  @IsOptional()
+  cardExpirationYear?: number;
 }

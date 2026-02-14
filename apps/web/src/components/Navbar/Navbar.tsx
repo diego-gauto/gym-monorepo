@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import styles from "./Navbar.module.css";
+import { getSession } from "../../lib/auth-flow";
 
 const NAV_LINKS = [
   { href: "/", sectionHref: "#inicio", label: "Inicio" },
@@ -16,12 +17,24 @@ export default function Navbar() {
   const [mounted, setMounted] = useState(false);
   const [shown, setShown] = useState(false);
   const [activeSection, setActiveSection] = useState("#inicio");
+  const [hasSession, setHasSession] = useState(false);
   const pathname = usePathname();
 
   useEffect(() => {
     setMounted(true);
+    setHasSession(Boolean(getSession()));
     const raf = requestAnimationFrame(() => setShown(true));
-    return () => cancelAnimationFrame(raf);
+    const onStorageChange = () => setHasSession(Boolean(getSession()));
+    const onSessionChange = () => setHasSession(Boolean(getSession()));
+    window.addEventListener("storage", onStorageChange);
+    window.addEventListener("focus", onStorageChange);
+    window.addEventListener("auth-session-changed", onSessionChange);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("storage", onStorageChange);
+      window.removeEventListener("focus", onStorageChange);
+      window.removeEventListener("auth-session-changed", onSessionChange);
+    };
   }, []);
 
   useEffect(() => {
@@ -113,7 +126,7 @@ export default function Navbar() {
           </ul>
 
           <div className={styles.rightActions}>
-            <Link href="/register" className={styles.loginLink}>
+            <Link href={hasSession ? "/profile" : "/register?origin=login_manual"} className={styles.loginLink}>
               <svg
                 className={styles.userIcon}
                 width="18"
@@ -129,7 +142,7 @@ export default function Navbar() {
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                 <circle cx="12" cy="7" r="4" />
               </svg>
-              Ingresar
+              {hasSession ? "Mi perfil" : "Ingresar"}
             </Link>
           </div>
         </div>

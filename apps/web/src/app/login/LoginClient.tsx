@@ -1,10 +1,13 @@
 "use client";
 
+import React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useForm } from "react-hook-form";
 import styles from "../auth/page.module.css";
 import {
+  buildCheckoutUrl,
   loginWithCredentials,
   persistOrigin,
   persistPlan,
@@ -12,6 +15,7 @@ import {
   resolvePlan,
   saveAuthSession,
 } from "../../lib/auth-flow";
+import { startGoogleOAuth } from "../../lib/google-oauth";
 
 type Props = {
   initialPlan: string | null;
@@ -23,23 +27,19 @@ type LoginFormValues = {
   password: string;
 };
 
-function validateForm(values: LoginFormValues) {
-  const errors: Partial<Record<keyof LoginFormValues, string>> = {};
-
-  if (!values.email.trim()) errors.email = "El email es obligatorio";
-  else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email)) errors.email = "Ingresá un email válido";
-
-  if (!values.password) errors.password = "La contraseña es obligatoria";
-
-  return errors;
-}
-
 export default function LoginClient({ initialPlan, initialOrigin }: Props) {
   const router = useRouter();
   const [message, setMessage] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [values, setValues] = useState<LoginFormValues>({ email: "", password: "" });
-  const [errors, setErrors] = useState<Partial<Record<keyof LoginFormValues, string>>>({});
+  const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isValid, isSubmitting },
+  } = useForm<LoginFormValues>({
+    mode: "onChange",
+    defaultValues: { email: "", password: "" },
+  });
 
   const planId = useMemo(() => resolvePlan(initialPlan), [initialPlan]);
   const origin = useMemo(() => resolveOrigin(initialOrigin), [initialOrigin]);
@@ -50,56 +50,84 @@ export default function LoginClient({ initialPlan, initialOrigin }: Props) {
     return `/register?${params.toString()}`;
   }, [origin, planId]);
 
-  const onChange = (field: keyof LoginFormValues, value: string) => {
-    const nextValues = { ...values, [field]: value };
-    setValues(nextValues);
-    setErrors(validateForm(nextValues));
-  };
-
-  const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const onSubmit = async (values: LoginFormValues) => {
     setMessage(null);
-
-    const nextErrors = validateForm(values);
-    setErrors(nextErrors);
-    if (Object.keys(nextErrors).length > 0) return;
 
     if (planId) persistPlan(planId);
     persistOrigin(origin);
 
-    setIsSubmitting(true);
     try {
       const response = await loginWithCredentials(values);
       saveAuthSession(response.access_token, response.user.email, response.user.role, origin);
-      router.push("/");
+      if (origin === "elegir_plan" && planId) {
+        router.push(buildCheckoutUrl(planId));
+      } else {
+        router.push("/");
+      }
     } catch {
       setMessage("Credenciales incorrectas. Revisá tu email y contraseña.");
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
-  const hasErrors = Object.keys(errors).length > 0;
+  const onGoogleSubmit = async () => {
+    setMessage(null);
+
+    setIsGoogleSubmitting(true);
+    try {
+      const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "";
+      startGoogleOAuth(clientId, { origin, planId });
+    } catch (error) {
+      const text = error instanceof Error ? error.message : "No se pudo iniciar sesión con Google.";
+      setMessage(text);
+      setIsGoogleSubmitting(false);
+    }
+  };
 
   return (
     <main className={styles.authPage}>
+      <section className={styles.visualPanel}>
+        <div className={styles.overlay} />
+        <div className={styles.visualContent}>
+          <p className={styles.kicker}>Comunidad GymPro</p>
+          <h1>Entrená mejor con tu plan y progreso centralizados.</h1>
+          <p>Iniciá sesión para continuar con tu inscripción o gestionar tu membresía.</p>
+        </div>
+      </section>
       <section className={styles.formPanel}>
         <div className={styles.card}>
           <header>
             <h2>Iniciar sesión</h2>
             <p>Entrá para continuar.</p>
+            <p style={{ marginTop: "0.6rem" }}>
+              <Link href={registerHref} className={styles.inlineLink}>No tengo cuenta / Registrarme</Link>
+            </p>
           </header>
 
-          <form className={styles.form} onSubmit={onSubmit} noValidate>
+          <form className={styles.form} onSubmit={handleSubmit(onSubmit)} noValidate>
             <label htmlFor="email">Email</label>
-            <input id="email" type="email" placeholder="tu@email.com" value={values.email} onChange={(e) => onChange("email", e.target.value)} />
-            {errors.email && <p className={styles.fieldError}>{errors.email}</p>}
+            <input
+              id="email"
+              type="email"
+              placeholder="tu@email.com"
+              {...register("email", {
+                required: "El email es obligatorio",
+                pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: "Ingresá un email válido" },
+              })}
+            />
+            {errors.email && <p className={styles.fieldError}>{errors.email.message}</p>}
 
             <label htmlFor="password">Contraseña</label>
-            <input id="password" type="password" placeholder="********" value={values.password} onChange={(e) => onChange("password", e.target.value)} />
-            {errors.password && <p className={styles.fieldError}>{errors.password}</p>}
+            <input
+              id="password"
+              type="password"
+              placeholder="********"
+              {...register("password", {
+                required: "La contraseña es obligatoria",
+              })}
+            />
+            {errors.password && <p className={styles.fieldError}>{errors.password.message}</p>}
 
-            <button type="submit" className={styles.submit} disabled={hasErrors || isSubmitting}>
+            <button type="submit" className={styles.submit} disabled={!isValid || isSubmitting}>
               {isSubmitting ? "Ingresando..." : "Ingresar"}
             </button>
           </form>
@@ -107,7 +135,9 @@ export default function LoginClient({ initialPlan, initialOrigin }: Props) {
           {message && <p className={styles.formMessage}>{message}</p>}
 
           <div className={styles.separator}><span>o</span></div>
-          <Link href={registerHref} className={styles.googleButton}>No tengo cuenta / Registrarme</Link>
+          <button type="button" className={styles.googleButton} onClick={onGoogleSubmit} disabled={isGoogleSubmitting}>
+            {isGoogleSubmitting ? "Conectando con Google..." : "Continuar con Google"}
+          </button>
         </div>
       </section>
     </main>

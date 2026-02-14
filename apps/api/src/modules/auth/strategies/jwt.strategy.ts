@@ -28,8 +28,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException();
     }
 
-    // Exclude password if it's there (though select: false should handle it)
-    const { password, ...result } = user;
-    return result;
+    return user;
   }
 }

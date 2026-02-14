@@ -1,19 +1,25 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import styles from "./Plans.module.css";
-import { buildCheckoutUrl, persistOrigin, persistPlan, type PlanId } from "../../lib/auth-flow";
-
-type BillingContext = {
-  isAuthenticated: boolean;
-  activeSubscriptionEndDate?: string | null;
-  paidAccessEndsAt?: string | null;
-};
+import {
+  buildCheckoutUrl,
+  fetchBillingContext,
+  getSession,
+  loginUser,
+  persistOrigin,
+  persistPlan,
+  requestPlanChange,
+  toPlanType,
+  type BillingContext,
+  type PlanId,
+} from "../../lib/auth-flow";
 
 type DialogState =
   | { kind: "none" }
   | { kind: "alreadySubscribed"; planId: PlanId; endDate: string | null }
-  | { kind: "paidPeriod"; planId: PlanId; endDate: string };
+  | { kind: "paidPeriod"; planId: PlanId; endDate: string; hasSavedCard: boolean }
+  | { kind: "result"; title: string; message: string };
 
 const PLANS = [
   {
@@ -78,46 +84,92 @@ function formatDate(dateLike?: string | null): string {
 
 export default function Plans() {
   const [dialog, setDialog] = useState<DialogState>({ kind: "none" });
+  const [billingContext, setBillingContext] = useState<BillingContext | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  const billingContext = useMemo<BillingContext>(() => {
-    if (typeof window === "undefined") return { isAuthenticated: false };
-
-    const globalContext = (window as Window & { __GYM_BILLING_CONTEXT__?: BillingContext }).__GYM_BILLING_CONTEXT__;
-
-    return globalContext ?? { isAuthenticated: false };
-  }, []);
-
-  const goToCheckout = (planId: PlanId, mode?: "scheduled_change" | "deferred_activation") => {
+  const goToCheckout = (planId: PlanId, mode?: "scheduled_change" | "deferred_activation", paidAccessEndsAt?: string) => {
     const checkoutUrl = buildCheckoutUrl(planId);
     if (mode) {
       const params = new URLSearchParams({ plan: planId, mode });
+      if (paidAccessEndsAt) params.set("paidAccessEndsAt", paidAccessEndsAt);
       window.location.href = `/checkout/mercadopago?${params.toString()}`;
       return;
     }
     window.location.href = checkoutUrl;
   };
 
-  const handleChoosePlan = (planId: PlanId) => {
-    persistPlan(planId);
-    persistOrigin("elegir_plan");
+  const loadContext = async (accessToken: string) => {
+    if (billingContext) return billingContext;
+    const context = await fetchBillingContext(accessToken);
+    setBillingContext(context);
+    return context;
+  };
 
-    if (!billingContext.isAuthenticated) {
+  const submitPlanRequest = async (planId: PlanId, mode: "scheduled_change" | "deferred_activation", paidAccessEndsAt?: string) => {
+    const session = getSession();
+    if (!session) {
       window.location.href = `/register?plan=${planId}&origin=elegir_plan`;
       return;
     }
 
-    if (billingContext.activeSubscriptionEndDate) {
-      setDialog({ kind: "alreadySubscribed", planId, endDate: billingContext.activeSubscriptionEndDate });
+    setIsProcessing(true);
+    try {
+      const response = await requestPlanChange(session.accessToken, {
+        newPlanId: toPlanType(planId),
+        mode,
+        paidAccessEndsAt,
+      });
+      setDialog({
+        kind: "result",
+        title: "Solicitud registrada",
+        message: `${response.message}. Se aplicará a partir de ${formatDate(response.effectiveAt)}.`,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "No se pudo registrar la solicitud.";
+      setDialog({
+        kind: "result",
+        title: "No se pudo completar",
+        message,
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleChoosePlan = async (planId: PlanId) => {
+    persistPlan(planId);
+    persistOrigin("elegir_plan");
+    const session = getSession();
+
+    if (!session) {
+      window.location.href = `/register?plan=${planId}&origin=elegir_plan`;
       return;
     }
 
-    const paidPeriodEnd = parseDate(billingContext.paidAccessEndsAt);
-    if (paidPeriodEnd && paidPeriodEnd.getTime() > Date.now()) {
-      setDialog({ kind: "paidPeriod", planId, endDate: billingContext.paidAccessEndsAt! });
-      return;
-    }
+    loginUser({ ...session, origin: "elegir_plan" });
 
-    goToCheckout(planId);
+    setIsProcessing(true);
+    try {
+      const context = await loadContext(session.accessToken);
+
+      if (context.activeSubscriptionEndDate) {
+        setDialog({ kind: "alreadySubscribed", planId, endDate: context.activeSubscriptionEndDate });
+        return;
+      }
+
+      const paidPeriodEnd = parseDate(context.paidAccessEndsAt);
+      if (paidPeriodEnd && paidPeriodEnd.getTime() > Date.now()) {
+        setDialog({ kind: "paidPeriod", planId, endDate: context.paidAccessEndsAt!, hasSavedCard: context.hasSavedCard });
+        return;
+      }
+
+      goToCheckout(planId);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "No se pudo validar tu estado de suscripción.";
+      setDialog({ kind: "result", title: "No se pudo continuar", message });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return (
@@ -152,7 +204,7 @@ export default function Plans() {
                 ))}
               </ul>
               <button type="button" className={styles.ctaSecondary} onClick={() => handleChoosePlan(plan.id)}>
-                Elegir Plan
+                {isProcessing ? "Procesando..." : "Elegir Plan"}
               </button>
             </div>
           ))}
@@ -169,8 +221,13 @@ export default function Plans() {
                   Podés hacer upgrade o downgrade sin interrupciones. El cambio se hará efectivo al terminar el período actual ({formatDate(dialog.endDate)}).
                 </p>
                 <div className={styles.modalActions}>
-                  <button type="button" className={styles.modalButtonPrimary} onClick={() => goToCheckout(dialog.planId, "scheduled_change")}>
-                    Solicitar cambio de plan
+                  <button
+                    type="button"
+                    className={styles.modalButtonPrimary}
+                    disabled={isProcessing}
+                    onClick={() => submitPlanRequest(dialog.planId, "scheduled_change")}
+                  >
+                    {isProcessing ? "Guardando..." : "Solicitar cambio de plan"}
                   </button>
                   <button type="button" className={styles.modalButtonSecondary} onClick={() => setDialog({ kind: "none" })}>
                     Entendido
@@ -186,11 +243,38 @@ export default function Plans() {
                   Tu nueva suscripción se activará al finalizar el período ya abonado ({formatDate(dialog.endDate)}).
                 </p>
                 <div className={styles.modalActions}>
-                  <button type="button" className={styles.modalButtonPrimary} onClick={() => goToCheckout(dialog.planId, "deferred_activation")}>
-                    Continuar a checkout
-                  </button>
+                  {dialog.hasSavedCard ? (
+                    <button
+                      type="button"
+                      className={styles.modalButtonPrimary}
+                      disabled={isProcessing}
+                      onClick={() => submitPlanRequest(dialog.planId, "deferred_activation", dialog.endDate)}
+                    >
+                      {isProcessing ? "Guardando..." : "Programar activación diferida"}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className={styles.modalButtonPrimary}
+                      onClick={() => goToCheckout(dialog.planId, "deferred_activation", dialog.endDate)}
+                    >
+                      Continuar a checkout para tokenizar tarjeta
+                    </button>
+                  )}
                   <button type="button" className={styles.modalButtonSecondary} onClick={() => setDialog({ kind: "none" })}>
                     Volver
+                  </button>
+                </div>
+              </>
+            )}
+
+            {dialog.kind === "result" && (
+              <>
+                <h3 className={styles.modalTitle}>{dialog.title}</h3>
+                <p className={styles.modalText}>{dialog.message}</p>
+                <div className={styles.modalActions}>
+                  <button type="button" className={styles.modalButtonPrimary} onClick={() => setDialog({ kind: "none" })}>
+                    Entendido
                   </button>
                 </div>
               </>

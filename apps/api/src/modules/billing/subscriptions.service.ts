@@ -51,7 +51,7 @@ export class SubscriptionsService {
   async extendActiveSubscription(subscription: Subscription) {
     const nextEndDate = this.calculateNextExpiration(
       subscription.billingCycleAnchorDay,
-      subscription.planId as PlanType,
+      subscription.planId,
       subscription.endDate // Extiende desde el vencimiento original
     );
     
@@ -72,7 +72,7 @@ export class SubscriptionsService {
     
     subscription.billingCycleAnchorDay = newAnchor;
     subscription.startDate = now;
-    subscription.endDate = this.calculateNextExpiration(newAnchor, subscription.planId as PlanType, now);
+    subscription.endDate = this.calculateNextExpiration(newAnchor, subscription.planId, now);
     subscription.status = MembershipStatus.ACTIVE;
     return this.subscriptionRepository.save(subscription);
   }

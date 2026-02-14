@@ -1,6 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, Generated, Index } from 'typeorm';
-import { ISubscription, MembershipStatus } from '@gym-admin/shared';
+import { ISubscription, MembershipStatus, PlanType } from '@gym-admin/shared';
 import { User } from '../../users/entities/user.entity';
+import { Plan } from './plan.entity';
 
 @Entity('subscriptions')
 export class Subscription implements ISubscription {
@@ -34,8 +35,12 @@ export class Subscription implements ISubscription {
   @Column()
   endDate!: Date;
 
-  @Column()
-  planId!: string; // Mapping to PlanType (MONTHLY, etc)
+  @Column({ name: 'plan_id', type: 'varchar' })
+  planId!: PlanType;
+
+  @ManyToOne(() => Plan, (plan: Plan) => plan.subscriptions)
+  @JoinColumn({ name: 'plan_id', referencedColumnName: 'id' })
+  plan!: Plan;
 
   @CreateDateColumn()
   createdAt!: Date;

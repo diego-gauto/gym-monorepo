@@ -19,7 +19,23 @@ const mockMpPayment = {
 jest.mock('mercadopago', () => ({
   MercadoPagoConfig: jest.fn(),
   Payment: jest.fn().mockImplementation(() => mockMpPayment),
-  CardToken: jest.fn(),
+  CardToken: jest.fn().mockImplementation(() => ({
+    create: jest.fn().mockResolvedValue({ id: 'token-123' }),
+  })),
+  Customer: jest.fn().mockImplementation(() => ({
+    search: jest.fn().mockResolvedValue({ results: [] }),
+    create: jest.fn().mockResolvedValue({ id: 'cus-123' }),
+    createCard: jest.fn().mockResolvedValue({
+      id: 'card-customer-123',
+      payment_method: { id: 'visa' },
+      last_four_digits: '1234',
+      issuer: { name: 'Santander' },
+      cardholder: { name: 'JUAN PEREZ' },
+      expiration_month: 12,
+      expiration_year: 2030,
+    }),
+    removeCard: jest.fn().mockResolvedValue({}),
+  })),
 }));
 
 describe('Billing Integration Scenarios', () => {
@@ -64,14 +80,19 @@ describe('Billing Integration Scenarios', () => {
   });
 
   it('Scenario: Recovery - GRACE_PERIOD -> New Card -> Approved -> ACTIVE', async () => {
-    const user = { id: 1, email: 't@t.com', status: MembershipStatus.GRACE_PERIOD } as User;
+    const user = {
+      id: 1,
+      email: 't@t.com',
+      status: MembershipStatus.GRACE_PERIOD,
+      billingProfile: { mercadopagoCardId: 'card-customer-123', mercadopagoCustomerId: 'cus-123', cardBrand: 'visa' },
+    } as unknown as User;
     const sub = { id: 1, userId: 1, status: MembershipStatus.GRACE_PERIOD, billingCycleAnchorDay: 15, endDate: new Date() } as Subscription;
     const invoice = { uuid: 'inv-uuid', status: InvoiceStatus.PENDING, subscription: sub } as Invoice;
 
     invoiceRepo.findOne.mockResolvedValue(invoice);
     mockMpPayment.create.mockResolvedValue({ id: 'mp-rec', status: 'approved' });
 
-    await paymentsService.updateCardAndRecover(user, { id: 'new-card' });
+    await paymentsService.updateCardAndRecover(user, { id: 'new-card', customerId: 'cus-123', brand: 'visa' });
 
     expect(user.status).toBe(MembershipStatus.ACTIVE);
     expect(sub.status).toBe(MembershipStatus.ACTIVE);

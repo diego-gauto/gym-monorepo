@@ -6,6 +6,7 @@ import { Invoice } from './entities/invoice.entity';
 import { SubscriptionsService } from './subscriptions.service';
 import { ConfigService } from '@nestjs/config';
 import { InvoiceStatus, MembershipStatus } from '@gym-admin/shared';
+import { UserBillingProfile } from '../users/entities/user-billing-profile.entity';
 
 // Mock Mercadopago
 jest.mock('mercadopago', () => {
@@ -17,6 +18,20 @@ jest.mock('mercadopago', () => {
     })),
     CardToken: jest.fn().mockImplementation(() => ({
       create: jest.fn().mockResolvedValue({ id: 'token-123' }),
+    })),
+    Customer: jest.fn().mockImplementation(() => ({
+      search: jest.fn().mockResolvedValue({ results: [] }),
+      create: jest.fn().mockResolvedValue({ id: 'cus-123' }),
+      createCard: jest.fn().mockResolvedValue({
+        id: 'card-customer-123',
+        payment_method: { id: 'visa' },
+        last_four_digits: '1234',
+        issuer: { name: 'Santander' },
+        cardholder: { name: 'JUAN PEREZ' },
+        expiration_month: 12,
+        expiration_year: 2030,
+      }),
+      removeCard: jest.fn().mockResolvedValue({}),
     })),
   };
 });
@@ -70,26 +85,36 @@ describe('PaymentsService', () => {
 
   describe('updateCardAndRecover', () => {
     it('should attempt immediate recovery for GRACE_PERIOD user', async () => {
-      const user = { id: 1, email: 't@t.com', status: MembershipStatus.GRACE_PERIOD, mercadopagoCardId: 'old' } as User;
+      const user = {
+        id: 1,
+        email: 't@t.com',
+        status: MembershipStatus.GRACE_PERIOD,
+        billingProfile: { mercadopagoCardId: 'old', mercadopagoCustomerId: 'cus-123', cardBrand: 'visa' } as UserBillingProfile,
+      } as unknown as User;
       const invoice = { uuid: 'inv-1', status: InvoiceStatus.PENDING, subscription: {} } as Invoice;
       
       invoiceRepo.findOne.mockResolvedValue(invoice);
       
-      await service.updateCardAndRecover(user, { id: 'new-card', brand: 'visa', lastFour: '1234', issuer: 'bank' });
+      await service.updateCardAndRecover(user, { id: 'new-card', customerId: 'cus-123', brand: 'visa', lastFour: '1234', issuer: 'bank' });
       
-      expect(user.mercadopagoCardId).toBe('new-card');
+      expect(user.billingProfile?.mercadopagoCardId).toBe('new-card');
       expect(invoiceRepo.save).toHaveBeenCalled();
       expect(subService.extendActiveSubscription).toHaveBeenCalled();
       expect(user.status).toBe(MembershipStatus.ACTIVE);
     });
 
     it('should reactivate from debt for REJECTED user', async () => {
-      const user = { id: 1, email: 't@t.com', status: MembershipStatus.REJECTED } as User;
+      const user = {
+        id: 1,
+        email: 't@t.com',
+        status: MembershipStatus.REJECTED,
+        billingProfile: { mercadopagoCardId: 'new-card', mercadopagoCustomerId: 'cus-123', cardBrand: 'visa' } as UserBillingProfile,
+      } as unknown as User;
       const invoice = { uuid: 'inv-1', status: InvoiceStatus.EXPIRED, subscription: {} } as Invoice;
       
       invoiceRepo.findOne.mockResolvedValue(invoice);
       
-      await service.updateCardAndRecover(user, { id: 'new-card' });
+      await service.updateCardAndRecover(user, { id: 'new-card', customerId: 'cus-123', brand: 'visa' });
       
       expect(subService.reactivateFromDebt).toHaveBeenCalled();
       expect(user.status).toBe(MembershipStatus.ACTIVE);

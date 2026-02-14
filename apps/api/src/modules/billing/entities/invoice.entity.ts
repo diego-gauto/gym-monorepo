@@ -1,5 +1,5 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, Generated, Index } from 'typeorm';
-import { IInvoice, PaymentMethod, InvoiceStatus } from '@gym-admin/shared';
+import { CurrencyCode, IInvoice, PaymentMethod, InvoiceStatus } from '@gym-admin/shared';
 import { User } from '../../users/entities/user.entity';
 import { Subscription } from './subscription.entity';
 
@@ -27,11 +27,18 @@ export class Invoice implements IInvoice {
   @JoinColumn({ name: 'subscription_id' })
   subscription!: Subscription;
 
-  @Column('decimal', { precision: 10, scale: 2 })
+  @Column('decimal', {
+    precision: 10,
+    scale: 2,
+    transformer: {
+      to: (value?: number) => value,
+      from: (value: string | number) => Number(value),
+    },
+  })
   amount!: number;
 
-  @Column()
-  currency!: string;
+  @Column({ type: 'simple-enum', enum: CurrencyCode, default: CurrencyCode.ARS })
+  currency!: CurrencyCode;
 
   @Column({
     type: 'simple-enum',

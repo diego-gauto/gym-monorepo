@@ -1,0 +1,404 @@
+.pageWrap {
+  min-height: 100vh;
+  padding: 6.5rem 1.2rem 2rem;
+  background:
+    radial-gradient(circle at 10% 15%, rgba(191, 255, 0, 0.09), transparent 36%),
+    radial-gradient(circle at 88% 10%, rgba(227, 6, 19, 0.12), transparent 42%),
+    var(--bg-dark);
+}
+
+.loadingWrap {
+  min-height: 100vh;
+  display: grid;
+  gap: 0.8rem;
+  place-items: center;
+  padding: 6rem 1rem;
+}
+
+.loader {
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  border-top-color: var(--primary);
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.checkoutGrid {
+  max-width: 1160px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1.05fr 1fr;
+  gap: 1.3rem;
+}
+
+.summaryPanel,
+.formPanel,
+.stateCard {
+  background: linear-gradient(150deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+  border: 1px solid var(--glass-border);
+  border-radius: 24px;
+  backdrop-filter: blur(10px);
+  padding: 1.5rem;
+}
+
+.kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--primary);
+  font-weight: 700;
+  margin-bottom: 0.6rem;
+}
+
+.summaryPanel h1 {
+  font-size: clamp(1.7rem, 2.6vw, 2.5rem);
+  line-height: 1.1;
+  margin-bottom: 0.6rem;
+}
+
+.sectionHeading {
+  font-size: 0.98rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.72);
+  margin-bottom: 0.5rem;
+}
+
+.summaryText {
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin-bottom: 1rem;
+  max-width: 50ch;
+}
+
+.planCard {
+  border-radius: 16px;
+  border: 1px solid rgba(191, 255, 0, 0.45);
+  background: linear-gradient(170deg, rgba(191, 255, 0, 0.1), rgba(191, 255, 0, 0.03));
+  padding: 1rem;
+}
+
+.planName {
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.planPrice {
+  margin-top: 0.35rem;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 2rem;
+  color: var(--primary);
+}
+
+.planBilling {
+  color: var(--text-main);
+  margin-top: 0.2rem;
+}
+
+.planRaw {
+  margin-top: 0.35rem;
+  color: var(--text-muted);
+  font-size: 0.86rem;
+}
+
+.checkList {
+  margin-top: 1rem;
+  list-style: none;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.checkList li {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 0.95rem;
+}
+
+.checkList li::before {
+  content: "";
+  width: 11px;
+  height: 11px;
+  border-radius: 999px;
+}
+
+.ok::before {
+  background: var(--primary);
+  box-shadow: 0 0 12px var(--primary-glow);
+}
+
+.pending::before {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.cardScene {
+  perspective: 1200px;
+}
+
+.card3d {
+  position: relative;
+  height: 220px;
+  transform-style: preserve-3d;
+  transition: transform 500ms cubic-bezier(0.35, 0, 0.2, 1);
+}
+
+.flipped {
+  transform: rotateY(180deg);
+}
+
+.cardFaceFront,
+.cardFaceBack {
+  position: absolute;
+  inset: 0;
+  border-radius: 18px;
+  overflow: hidden;
+  backface-visibility: hidden;
+  background:
+    radial-gradient(circle at 92% 12%, rgba(227, 6, 19, 0.4), transparent 38%),
+    radial-gradient(circle at 18% 88%, rgba(191, 255, 0, 0.35), transparent 45%),
+    linear-gradient(130deg, #0f1826 15%, #1a2336 85%);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+}
+
+.cardFaceFront {
+  padding: 1rem 1.1rem;
+}
+
+.cardFaceBack {
+  transform: rotateY(180deg);
+  padding: 1.1rem;
+}
+
+.cardTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.brandBadge {
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 0.2rem 0.7rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.chip {
+  width: 44px;
+  height: 32px;
+  border-radius: 8px;
+  background: linear-gradient(145deg, #f2f2f2, #c7c7c7);
+}
+
+.cardNumber {
+  margin-top: 1.2rem;
+  font-size: 1.35rem;
+  letter-spacing: 0.07em;
+  font-family: "Space Grotesk", sans-serif;
+}
+
+.cardBottom {
+  margin-top: 1.2rem;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.cardLabel {
+  display: block;
+  font-size: 0.68rem;
+  opacity: 0.8;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.magneticBand {
+  height: 42px;
+  margin-top: 0.45rem;
+  background: #0f1119;
+}
+
+.cvvStripe {
+  margin-top: 1rem;
+  background: #f6f6f6;
+  color: #111;
+  border-radius: 8px;
+  padding: 0.55rem 0.7rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+}
+
+.backHint {
+  margin-top: 0.8rem;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.86rem;
+}
+
+.paymentForm {
+  margin-top: 1rem;
+  display: grid;
+  gap: 0.8rem;
+}
+
+.inputGroup {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.inputGroup label {
+  font-size: 0.83rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.inputGroup input {
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(10, 10, 10, 0.45);
+  color: var(--text-main);
+  border-radius: 12px;
+  padding: 0.72rem 0.8rem;
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.inputGroup input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(191, 255, 0, 0.15);
+}
+
+.rowTwo {
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns: 1fr 1fr;
+}
+
+.termsRow {
+  margin-top: 0.15rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.termsRow input {
+  margin-top: 0.2rem;
+}
+
+.primaryButton {
+  margin-top: 0.2rem;
+  border-radius: 12px;
+  padding: 0.88rem 1rem;
+  font-weight: 800;
+  background: var(--primary);
+  color: var(--bg-dark);
+  border: 1px solid var(--primary);
+  transition: transform 180ms ease, box-shadow 180ms ease, opacity 180ms ease;
+}
+
+.primaryButton:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px var(--primary-glow);
+}
+
+.primaryButton:disabled {
+  opacity: 0.58;
+  cursor: not-allowed;
+}
+
+.message {
+  margin-top: 0.75rem;
+  color: var(--text-main);
+}
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(5, 8, 14, 0.76);
+  backdrop-filter: blur(4px);
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+}
+
+.modalCard {
+  width: min(100%, 520px);
+  border-radius: 18px;
+  border: 1px solid var(--glass-border);
+  background: linear-gradient(160deg, rgba(16, 24, 37, 0.96), rgba(11, 16, 26, 0.98));
+  padding: 1.2rem;
+  box-shadow: 0 22px 46px rgba(0, 0, 0, 0.45);
+}
+
+.modalCard h3 {
+  font-size: 1.25rem;
+  margin-bottom: 0.55rem;
+}
+
+.modalCard p {
+  color: var(--text-muted);
+  line-height: 1.45;
+  margin-bottom: 0.9rem;
+}
+
+.tokenForm {
+  margin-top: 0.95rem;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.tokenForm p {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+.tokenForm input {
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(10, 10, 10, 0.45);
+  color: var(--text-main);
+  border-radius: 12px;
+  padding: 0.72rem 0.8rem;
+}
+
+@media (max-width: 980px) {
+  .checkoutGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .pageWrap {
+    padding-top: 5.8rem;
+  }
+
+  .card3d {
+    height: 205px;
+  }
+
+  .cardNumber {
+    font-size: 1.12rem;
+  }
+
+  .rowTwo {
+    grid-template-columns: 1fr;
+  }
+}

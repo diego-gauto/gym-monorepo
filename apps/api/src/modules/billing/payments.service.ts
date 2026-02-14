@@ -1,18 +1,43 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { MercadoPagoConfig, Payment, CardToken } from 'mercadopago';
+import { MercadoPagoConfig, Payment, CardToken, Customer } from 'mercadopago';
 import { Invoice } from './entities/invoice.entity';
 import { User } from '../users/entities/user.entity';
 import { InvoiceStatus, MembershipStatus } from '@gym-admin/shared';
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { SubscriptionsService } from './subscriptions.service';
+import { UserBillingProfile } from '../users/entities/user-billing-profile.entity';
+
+type ReusableCardInput = {
+  cardNumber: string;
+  expirationMonth: string;
+  expirationYear: string;
+  securityCode: string;
+  cardholderName: string;
+  identificationType: string;
+  identificationNumber: string;
+  fallbackBrand?: string | null;
+  fallbackIssuer?: string | null;
+};
+
+type ReusableCardSnapshot = {
+  customerId: string;
+  cardId: string;
+  cardBrand: string | null;
+  cardLastFour: string | null;
+  cardIssuer: string | null;
+  cardholderName: string | null;
+  cardExpirationMonth: number | null;
+  cardExpirationYear: number | null;
+};
 
 @Injectable()
 export class PaymentsService {
   private readonly logger = new Logger(PaymentsService.name);
   private readonly client: MercadoPagoConfig;
   private readonly paymentClient: Payment;
+  private readonly customerClient: Customer;
 
   constructor(
     private configService: ConfigService,
@@ -28,6 +53,7 @@ export class PaymentsService {
     }
     this.client = new MercadoPagoConfig({ accessToken, options: { timeout: 5000 } });
     this.paymentClient = new Payment(this.client);
+    this.customerClient = new Customer(this.client);
   }
 
   /**
@@ -48,20 +74,21 @@ export class PaymentsService {
   /**
    * Processes a payment through Mercado Pago.
    */
-  async processPayment(invoice: Invoice, cardId: string, payerEmail: string) {
+  async processPayment(invoice: Invoice, paymentToken: string, payerEmail: string, paymentMethodId = 'visa', payerCustomerId?: string) {
     const paymentClient = new Payment(this.client);
+    const payer = payerCustomerId
+      ? { email: payerEmail, id: payerCustomerId, type: 'customer' }
+      : { email: payerEmail };
 
     try {
       const paymentData = {
         body: {
           transaction_amount: Number(invoice.amount),
-          token: cardId,
+          token: paymentToken,
           description: `Cuota Gimnasio - Invoice ${invoice.uuid}`,
           installments: 1,
-          payment_method_id: 'visa', // Defaulting for simple test, should be dynamic or fetched from cardId
-          payer: {
-            email: payerEmail,
-          },
+          payment_method_id: paymentMethodId,
+          payer,
           external_reference: invoice.uuid, // CRITICAL: Linkage for reconciliation
           notification_url: this.configService.get<string>('MP_WEBHOOK_URL'),
         },
@@ -70,7 +97,7 @@ export class PaymentsService {
         }
       };
 
-      this.logger.log(`Processing payment for Invoice ${invoice.uuid} using Card ${cardId}`);
+      this.logger.log(`Processing payment for Invoice ${invoice.uuid} using payment token ${paymentToken}`);
       const result = await paymentClient.create(paymentData);
       
       return result;
@@ -80,6 +107,110 @@ export class PaymentsService {
     }
   }
 
+  private async findOrCreateCustomer(user: User, identificationType: string, identificationNumber: string): Promise<string> {
+    const existingCustomerId = user.billingProfile?.mercadopagoCustomerId;
+    if (existingCustomerId) return existingCustomerId;
+
+    const search = await this.customerClient.search({ options: { email: user.email } });
+    const foundId = search.results?.[0]?.id;
+    if (foundId) return foundId;
+
+    const created = await this.customerClient.create({
+      body: {
+        email: user.email,
+        first_name: user.firstName,
+        last_name: user.lastName,
+        identification: {
+          type: identificationType,
+          number: identificationNumber,
+        },
+      },
+    });
+
+    if (!created.id) {
+      throw new Error('No se pudo crear customer en Mercado Pago.');
+    }
+
+    return created.id;
+  }
+
+  async ensureReusableCardForUser(user: User, input: ReusableCardInput): Promise<ReusableCardSnapshot> {
+    const customerId = await this.findOrCreateCustomer(user, input.identificationType, input.identificationNumber);
+    const currentCardId = user.billingProfile?.mercadopagoCardId;
+
+    if (currentCardId && user.billingProfile?.mercadopagoCustomerId === customerId) {
+      try {
+        await this.customerClient.removeCard({ customerId, cardId: currentCardId });
+      } catch (error: any) {
+        this.logger.warn(`Could not remove previous customer card ${currentCardId}: ${error?.message ?? error}`);
+      }
+    }
+
+    const vaultToken = await this.createCardToken({
+      card_number: input.cardNumber,
+      expiration_month: input.expirationMonth,
+      expiration_year: input.expirationYear,
+      security_code: input.securityCode,
+      cardholder: {
+        name: input.cardholderName,
+        identification: {
+          type: input.identificationType,
+          number: input.identificationNumber,
+        },
+      },
+    });
+
+    if (!vaultToken?.id) {
+      throw new Error('No se pudo tokenizar la tarjeta para guardado.');
+    }
+
+    const customerCard = await this.customerClient.createCard({
+      customerId,
+      body: { token: vaultToken.id },
+    });
+
+    if (!customerCard?.id) {
+      throw new Error('No se pudo asociar la tarjeta al customer de Mercado Pago.');
+    }
+
+    return {
+      customerId,
+      cardId: customerCard.id,
+      cardBrand: customerCard.payment_method?.id ?? input.fallbackBrand ?? null,
+      cardLastFour: customerCard.last_four_digits ?? input.cardNumber.slice(-4),
+      cardIssuer: customerCard.issuer?.name ?? input.fallbackIssuer ?? null,
+      cardholderName: customerCard.cardholder?.name ?? input.cardholderName,
+      cardExpirationMonth: customerCard.expiration_month ?? Number(input.expirationMonth),
+      cardExpirationYear: customerCard.expiration_year ?? Number(input.expirationYear),
+    };
+  }
+
+  async processPaymentWithSavedCard(invoice: Invoice, user: User) {
+    const customerId = user.billingProfile?.mercadopagoCustomerId ?? undefined;
+    const cardId = user.billingProfile?.mercadopagoCardId ?? undefined;
+    const paymentMethodId = user.billingProfile?.cardBrand?.toLowerCase() || 'visa';
+
+    if (!cardId) {
+      throw new Error('El usuario no tiene tarjeta guardada.');
+    }
+
+    if (!customerId) {
+      // Legacy fallback for records created before customer/card linkage.
+      return this.processPayment(invoice, cardId, user.email, paymentMethodId);
+    }
+
+    const paymentToken = await this.createCardToken({
+      customer_id: customerId,
+      card_id: cardId,
+    });
+
+    if (!paymentToken?.id) {
+      throw new Error('No se pudo generar token de pago para tarjeta guardada.');
+    }
+
+    return this.processPayment(invoice, paymentToken.id, user.email, paymentMethodId, customerId);
+  }
+
   /**
    * Rule 9: Recovery via New Card Registration.
    */
@@ -87,10 +218,15 @@ export class PaymentsService {
     this.logger.log(`Updating card and checking recovery for user ${user.email}`);
 
     // Update user card details
-    user.mercadopagoCardId = cardData.id;
-    user.cardBrand = cardData.brand;
-    user.cardLastFour = cardData.lastFour;
-    user.cardIssuer = cardData.issuer;
+    user.billingProfile = user.billingProfile ?? new UserBillingProfile();
+    user.billingProfile.mercadopagoCardId = cardData.id;
+    user.billingProfile.mercadopagoCustomerId = cardData.customerId ?? user.billingProfile.mercadopagoCustomerId ?? null;
+    user.billingProfile.cardBrand = cardData.brand;
+    user.billingProfile.cardLastFour = cardData.lastFour;
+    user.billingProfile.cardIssuer = cardData.issuer;
+    user.billingProfile.cardholderName = cardData.cardholderName ?? user.billingProfile.cardholderName ?? null;
+    user.billingProfile.cardExpirationMonth = cardData.cardExpirationMonth ?? user.billingProfile.cardExpirationMonth ?? null;
+    user.billingProfile.cardExpirationYear = cardData.cardExpirationYear ?? user.billingProfile.cardExpirationYear ?? null;
     await this.userRepository.save(user);
 
     // Rule 9: If user is in GRACE_PERIOD or REJECTED, try to pay pending/expired invoice
@@ -104,9 +240,9 @@ export class PaymentsService {
         relations: ['subscription'],
       });
 
-        if (pendingInvoice && user.mercadopagoCardId) {
-          this.logger.log(`Attempting immediate recovery for Invoice ${pendingInvoice.uuid}`);
-          const result = await this.processPayment(pendingInvoice, user.mercadopagoCardId, user.email);
+      if (pendingInvoice && user.billingProfile?.mercadopagoCardId) {
+        this.logger.log(`Attempting immediate recovery for Invoice ${pendingInvoice.uuid}`);
+        const result = await this.processPaymentWithSavedCard(pendingInvoice, user);
 
         if (result.status === 'approved') {
           pendingInvoice.status = InvoiceStatus.PAID;
