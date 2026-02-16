@@ -2,51 +2,6 @@ import React from 'react';
 import styles from './Benefits.module.css';
 import type { PublicBenefitContent } from '../../lib/public-content';
 
-const BENEFITS: PublicBenefitContent[] = [
-  {
-    id: "benefit-1",
-    iconKey: "DUMBBELL",
-    title: 'Equipamiento Premium',
-    description: 'Máquinas de última generación y pesas de competencia para un entrenamiento efectivo.',
-    active: true,
-  },
-  {
-    id: "benefit-2",
-    iconKey: "GROUP",
-    title: 'Clases Grupales',
-    description: 'Más de 15 clases semanales: funcional, spinning, yoga, crosstraining y más.',
-    active: true,
-  },
-  {
-    id: "benefit-3",
-    iconKey: "CLOCK",
-    title: 'Horarios Flexibles',
-    description: 'Abierto de 6:00 a 23:00 hs. Entrená cuando mejor te convenga.',
-    active: true,
-  },
-  {
-    id: "benefit-4",
-    iconKey: "TROPHY",
-    title: 'Entrenadores Certificados',
-    description: 'Profesionales con años de experiencia para guiarte en cada paso.',
-    active: true,
-  },
-  {
-    id: "benefit-5",
-    iconKey: "HEART",
-    title: 'Seguimiento Personalizado',
-    description: 'Evaluaciones físicas y planes adaptados a tus objetivos.',
-    active: true,
-  },
-  {
-    id: "benefit-6",
-    iconKey: "BOLT",
-    title: 'Resultados Garantizados',
-    description: 'Metodología probada para que veas cambios reales en tu cuerpo.',
-    active: true,
-  },
-];
-
 function renderIcon(iconKey: string) {
   switch (iconKey) {
     case "GROUP":
@@ -93,7 +48,7 @@ type BenefitsProps = {
   items?: PublicBenefitContent[];
 };
 
-export default function Benefits({ items = BENEFITS }: BenefitsProps) {
+export default function Benefits({ items = [] }: BenefitsProps) {
   return (
     <section id="beneficios" className={styles.benefits}>
       <div className="container">

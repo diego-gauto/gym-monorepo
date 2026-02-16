@@ -1,7 +1,6 @@
 import React from "react";
 import Link from "next/link";
 import styles from "./Disciplines.module.css";
-import { ACTIVITIES } from "../../data/activities";
 import type { PublicActivityContent } from "../../lib/public-content";
 
 type DisciplinesProps = {
@@ -17,13 +16,7 @@ export default function Disciplines({
     </>
   ),
   sectionId = "disciplinas",
-  items = ACTIVITIES.map((activity) => ({
-    slug: activity.slug,
-    name: activity.name,
-    shortDescription: activity.shortDescription,
-    cardImage: activity.cardImage,
-    cardImagePosition: activity.cardImagePosition,
-  })),
+  items = [],
 }: DisciplinesProps) {
   return (
     <section id={sectionId} className={styles.disciplines}>

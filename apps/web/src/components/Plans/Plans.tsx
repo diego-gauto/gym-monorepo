@@ -32,47 +32,6 @@ type DisplayPlan = {
   badge?: string | null;
 };
 
-const DEFAULT_PLANS: DisplayPlan[] = [
-  {
-    id: "monthly" as const,
-    name: "Mensual",
-    description: "Ideal para empezar tu transformación",
-    monthlyNumeric: 15000,
-    features: ["Acceso completo al gimnasio", "Uso de equipamiento premium", "Vestuarios con lockers", "WiFi gratis"],
-    highlight: false,
-  },
-  {
-    id: "quarterly" as const,
-    name: "Trimestral",
-    description: "La mejor relación precio-calidad",
-    monthlyNumeric: 12000,
-    features: [
-      "Todo lo del plan Mensual",
-      "Acceso a clases grupales",
-      "Evaluación física inicial",
-      "Plan de entrenamiento personalizado",
-      "10% descuento en tienda",
-    ],
-    highlight: true,
-    badge: "Más Popular",
-  },
-  {
-    id: "yearly" as const,
-    name: "Anual",
-    description: "Máximo compromiso, máximos beneficios",
-    monthlyNumeric: 10000,
-    features: [
-      "Todo lo del plan Trimestral",
-      "Acceso prioritario a nuevas clases",
-      "Seguimiento nutricional básico",
-      "2 sesiones de PT incluidas",
-      "20% descuento en tienda",
-      "Congelamiento de membresía (30 días)",
-    ],
-    highlight: false,
-  },
-];
-
 function normalizePlanId(planId: string): PlanId | null {
   switch (planId.toLowerCase()) {
     case "monthly":
@@ -87,7 +46,7 @@ function normalizePlanId(planId: string): PlanId | null {
 }
 
 function toDisplayPlans(plans?: PublicPlanContent[]): DisplayPlan[] {
-  if (!plans?.length) return DEFAULT_PLANS;
+  if (!plans?.length) return [];
   return plans
     .filter((plan) => plan.active)
     .map((plan) => ({

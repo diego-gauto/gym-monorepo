@@ -2,22 +2,15 @@ import React from "react";
 import styles from "./Footer.module.css";
 
 type FooterProps = {
-  gymName?: string;
-  gymDescription?: string;
-  activities?: Array<{ slug: string; name: string }>;
+  gymName: string;
+  gymDescription: string;
+  activities: Array<{ slug: string; name: string }>;
 };
 
 export default function Footer({
-  gymName = "GYM MASTER",
-  gymDescription = "Tu transformación comienza hoy. Sumate a la elite del entrenamiento nacional con el respaldo de profesionales certificados.",
-  activities = [
-    { slug: "musculacion", name: "Musculación" },
-    { slug: "crossfit", name: "Cross Training" },
-    { slug: "yoga", name: "Yoga" },
-    { slug: "boxing", name: "Boxeo" },
-    { slug: "spinning", name: "Spinning" },
-    { slug: "funcional", name: "Funcional" },
-  ],
+  gymName,
+  gymDescription,
+  activities,
 }: FooterProps) {
   return (
     <footer className={styles.footer}>
