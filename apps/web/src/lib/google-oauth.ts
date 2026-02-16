@@ -8,6 +8,7 @@ const GOOGLE_OAUTH_CONTEXT_KEY = "gym.googleOAuthContext";
 type GoogleOAuthContext = {
   origin: LoginOrigin;
   planId: PlanId | null;
+  nextPath?: string | null;
 };
 
 function randomState(): string {
@@ -51,18 +52,22 @@ export function consumeGoogleOAuthState(): string | null {
 }
 
 export function getGoogleCallbackRedirectTarget() {
-  if (typeof window === "undefined") return { origin: "login_manual" as const, planId: null };
+  if (typeof window === "undefined") return { origin: "login_manual" as const, planId: null, nextPath: null };
   const raw = window.localStorage.getItem(GOOGLE_OAUTH_CONTEXT_KEY);
   window.localStorage.removeItem(GOOGLE_OAUTH_CONTEXT_KEY);
 
-  if (!raw) return { origin: "login_manual" as const, planId: null };
+  if (!raw) return { origin: "login_manual" as const, planId: null, nextPath: null };
 
   try {
     const parsed = JSON.parse(raw) as Partial<GoogleOAuthContext>;
     const origin = parsed.origin === "elegir_plan" || parsed.origin === "login_manual" ? parsed.origin : "login_manual";
     const planId = parsed.planId === "monthly" || parsed.planId === "quarterly" || parsed.planId === "yearly" ? parsed.planId : null;
-    return { origin, planId };
+    const nextPath =
+      typeof parsed.nextPath === "string" && parsed.nextPath.startsWith("/") && !parsed.nextPath.startsWith("//")
+        ? parsed.nextPath
+        : null;
+    return { origin, planId, nextPath };
   } catch {
-    return { origin: "login_manual" as const, planId: null };
+    return { origin: "login_manual" as const, planId: null, nextPath: null };
   }
 }

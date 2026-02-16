@@ -14,6 +14,7 @@ import {
   type BillingContext,
   type PlanId,
 } from "../../lib/auth-flow";
+import type { PublicPlanContent } from "../../lib/public-content";
 
 type DialogState =
   | { kind: "none" }
@@ -21,7 +22,17 @@ type DialogState =
   | { kind: "paidPeriod"; planId: PlanId; endDate: string; hasSavedCard: boolean }
   | { kind: "result"; title: string; message: string };
 
-const PLANS = [
+type DisplayPlan = {
+  id: PlanId | string;
+  name: string;
+  description: string;
+  monthlyNumeric: number;
+  features: string[];
+  highlight: boolean;
+  badge?: string | null;
+};
+
+const DEFAULT_PLANS: DisplayPlan[] = [
   {
     id: "monthly" as const,
     name: "Mensual",
@@ -62,6 +73,34 @@ const PLANS = [
   },
 ];
 
+function normalizePlanId(planId: string): PlanId | null {
+  switch (planId.toLowerCase()) {
+    case "monthly":
+      return "monthly";
+    case "quarterly":
+      return "quarterly";
+    case "yearly":
+      return "yearly";
+    default:
+      return null;
+  }
+}
+
+function toDisplayPlans(plans?: PublicPlanContent[]): DisplayPlan[] {
+  if (!plans?.length) return DEFAULT_PLANS;
+  return plans
+    .filter((plan) => plan.active)
+    .map((plan) => ({
+      id: normalizePlanId(plan.id) ?? plan.id,
+      name: plan.name,
+      description: plan.description,
+      monthlyNumeric: Number(plan.price),
+      features: plan.features ?? [],
+      highlight: plan.highlight,
+      badge: plan.badge ?? null,
+    }));
+}
+
 function formatNumber(n: number) {
   return n.toLocaleString("es-AR");
 }
@@ -82,10 +121,15 @@ function formatDate(dateLike?: string | null): string {
   }).format(date);
 }
 
-export default function Plans() {
+type PlansProps = {
+  contentPlans?: PublicPlanContent[];
+};
+
+export default function Plans({ contentPlans }: PlansProps) {
   const [dialog, setDialog] = useState<DialogState>({ kind: "none" });
   const [billingContext, setBillingContext] = useState<BillingContext | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const plans = toDisplayPlans(contentPlans);
 
   const goToCheckout = (planId: PlanId, mode?: "scheduled_change" | "deferred_activation", paidAccessEndsAt?: string) => {
     const checkoutUrl = buildCheckoutUrl(planId);
@@ -179,35 +223,46 @@ export default function Plans() {
           Elegí tu <span className="accent-font">Pase</span>
         </h2>
         <div className={styles.grid}>
-          {PLANS.map((plan) => (
-            <div key={plan.id} className={`${styles.card} ${plan.highlight ? styles.highlighted : ""}`}>
-              {plan.badge && <span className={styles.badge}>{plan.badge}</span>}
-              <div className={styles.planHeader}>
-                <h3 className={styles.planName}>{plan.name}</h3>
-                <p className={styles.planDescription}>{plan.description}</p>
-              </div>
-              <div className={styles.priceContainer}>
-                <div className={styles.priceMain}>
-                  <span className={styles.currency}>$</span>
-                  <span className={styles.amount}>
-                    {formatNumber(
-                      plan.id === "monthly" ? plan.monthlyNumeric : plan.id === "quarterly" ? plan.monthlyNumeric * 3 : plan.monthlyNumeric * 12,
-                    )}
-                  </span>
-                  {plan.id === "monthly" && <span className={styles.period}>/mes</span>}
+          {plans.map((plan) => {
+            const onlinePlanId = normalizePlanId(String(plan.id));
+            let priceNote = "\u00a0";
+            if (onlinePlanId === "quarterly") {
+              priceNote = `te queda en $${formatNumber(Math.round(plan.monthlyNumeric / 3))} / mes`;
+            }
+            if (onlinePlanId === "yearly") {
+              priceNote = `te queda en $${formatNumber(Math.round(plan.monthlyNumeric / 12))} / mes`;
+            }
+            return (
+              <div key={String(plan.id)} className={`${styles.card} ${plan.highlight ? styles.highlighted : ""}`}>
+                {plan.badge && <span className={styles.badge}>{plan.badge}</span>}
+                <div className={styles.planHeader}>
+                  <h3 className={styles.planName}>{plan.name}</h3>
+                  <p className={styles.planDescription}>{plan.description}</p>
                 </div>
-                <div className={styles.priceSub}>{plan.id === "monthly" ? "\u00a0" : `te queda en $${formatNumber(plan.monthlyNumeric)} / mes`}</div>
+                <div className={styles.priceContainer}>
+                  <div className={styles.priceMain}>
+                    <span className={styles.currency}>$</span>
+                    <span className={styles.amount}>{formatNumber(plan.monthlyNumeric)}</span>
+                    {onlinePlanId === "monthly" && <span className={styles.period}>/mes</span>}
+                  </div>
+                  <div className={styles.priceSub}>{priceNote}</div>
+                </div>
+                <ul className={styles.features}>
+                  {plan.features.map((f, i) => (
+                    <li key={i}>{f}</li>
+                  ))}
+                </ul>
+                <button
+                  type="button"
+                  className={styles.ctaSecondary}
+                  onClick={() => onlinePlanId && handleChoosePlan(onlinePlanId)}
+                  disabled={!onlinePlanId}
+                >
+                  {!onlinePlanId ? "No disponible online" : isProcessing ? "Procesando..." : "Elegir Plan"}
+                </button>
               </div>
-              <ul className={styles.features}>
-                {plan.features.map((f, i) => (
-                  <li key={i}>{f}</li>
-                ))}
-              </ul>
-              <button type="button" className={styles.ctaSecondary} onClick={() => handleChoosePlan(plan.id)}>
-                {isProcessing ? "Procesando..." : "Elegir Plan"}
-              </button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 

@@ -2,10 +2,12 @@ import React from "react";
 import Link from "next/link";
 import styles from "./Disciplines.module.css";
 import { ACTIVITIES } from "../../data/activities";
+import type { PublicActivityContent } from "../../lib/public-content";
 
 type DisciplinesProps = {
   title?: React.ReactNode;
   sectionId?: string;
+  items?: Array<Pick<PublicActivityContent, "slug" | "name" | "shortDescription" | "cardImage"> & { cardImagePosition?: string }>;
 };
 
 export default function Disciplines({
@@ -15,13 +17,20 @@ export default function Disciplines({
     </>
   ),
   sectionId = "disciplinas",
+  items = ACTIVITIES.map((activity) => ({
+    slug: activity.slug,
+    name: activity.name,
+    shortDescription: activity.shortDescription,
+    cardImage: activity.cardImage,
+    cardImagePosition: activity.cardImagePosition,
+  })),
 }: DisciplinesProps) {
   return (
     <section id={sectionId} className={styles.disciplines}>
       <div className="container">
         <h2 className={styles.sectionTitle}>{title}</h2>
         <div className={styles.grid}>
-          {ACTIVITIES.map((activity) => (
+          {items.map((activity) => (
             <Link
               href={`/actividades/${activity.slug}`}
               key={activity.slug}
@@ -29,7 +38,10 @@ export default function Disciplines({
             >
               <div
                 className={styles.bg}
-                style={{ backgroundImage: `url(${activity.cardImage})` }}
+                style={{
+                  backgroundImage: `url(${activity.cardImage})`,
+                  backgroundPosition: activity.cardImagePosition ?? "center",
+                }}
                 aria-hidden="true"
               ></div>
               <div className={styles.overlay}></div>

@@ -10,6 +10,9 @@ export class Plan implements IPlan {
   @Column({ type: 'varchar' })
   name!: string;
 
+  @Column({ type: 'text', default: '' })
+  description!: string;
+
   @Column('decimal', {
     precision: 10,
     scale: 2,
@@ -22,6 +25,15 @@ export class Plan implements IPlan {
 
   @Column({ type: 'simple-enum', enum: CurrencyCode, default: CurrencyCode.ARS })
   currency!: CurrencyCode;
+
+  @Column({ type: 'text', array: true, default: () => "'{}'" })
+  features!: string[];
+
+  @Column({ type: 'boolean', default: false })
+  highlight!: boolean;
+
+  @Column({ type: 'varchar', nullable: true })
+  badge?: string | null;
 
   @Column({ name: 'is_active', type: 'boolean', default: true })
   isActive!: boolean;

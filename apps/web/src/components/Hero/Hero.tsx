@@ -1,17 +1,32 @@
 import React from 'react';
 import styles from './Hero.module.css';
 
-export default function Hero() {
+type HeroProps = {
+  badge?: string;
+  title?: string;
+  subtitle?: string;
+  backgroundImage?: string;
+};
+
+export default function Hero({
+  badge = "#1 EN FITNESS PREMIUM",
+  title = "Transformá tu cuerpo. Superá tus límites.",
+  subtitle = "Unite al gimnasio más moderno de Argentina. Equipamiento de última generación, entrenadores certificados y una comunidad que te impulsa a alcanzar tus metas.",
+  backgroundImage = "/hero-bg.png",
+}: HeroProps) {
+  const [titleMain, titleHighlight] = title.split(". ");
+
   return (
-    <section id="inicio" className={styles.hero}>
+    <section id="inicio" className={styles.hero} style={{ backgroundImage: `url('${backgroundImage}')` }}>
       <div className={styles.overlay}></div>
       <div className={`${styles.content} container`}>
-        <div className={styles.badge}>#1 EN FITNESS PREMIUM</div>
+        <div className={styles.badge}>{badge}</div>
         <h1 className={styles.title}>
-          Transformá tu cuerpo. <span className={styles.highlight}>Superá tus límites.</span>
+          {titleMain}
+          {titleHighlight && <span className={styles.highlight}> {titleHighlight}</span>}
         </h1>
         <p className={styles.subtitle}>
-          Unite al gimnasio más moderno de Argentina. Equipamiento de última generación, entrenadores certificados y una comunidad que te impulsa a alcanzar tus metas.
+          {subtitle}
         </p>
         
         <div className={styles.stats}>

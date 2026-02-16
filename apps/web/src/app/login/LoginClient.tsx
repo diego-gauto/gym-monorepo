@@ -20,6 +20,7 @@ import { startGoogleOAuth } from "../../lib/google-oauth";
 type Props = {
   initialPlan: string | null;
   initialOrigin: string | null;
+  initialNext?: string | null;
 };
 
 type LoginFormValues = {
@@ -27,7 +28,7 @@ type LoginFormValues = {
   password: string;
 };
 
-export default function LoginClient({ initialPlan, initialOrigin }: Props) {
+export default function LoginClient({ initialPlan, initialOrigin, initialNext = null }: Props) {
   const router = useRouter();
   const [message, setMessage] = useState<string | null>(null);
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
@@ -43,12 +44,19 @@ export default function LoginClient({ initialPlan, initialOrigin }: Props) {
 
   const planId = useMemo(() => resolvePlan(initialPlan), [initialPlan]);
   const origin = useMemo(() => resolveOrigin(initialOrigin), [initialOrigin]);
+  const nextPath = useMemo(() => {
+    if (!initialNext) return null;
+    if (!initialNext.startsWith('/')) return null;
+    if (initialNext.startsWith('//')) return null;
+    return initialNext;
+  }, [initialNext]);
 
   const registerHref = useMemo(() => {
     const params = new URLSearchParams({ origin });
     if (planId) params.set("plan", planId);
+    if (nextPath) params.set("next", nextPath);
     return `/register?${params.toString()}`;
-  }, [origin, planId]);
+  }, [origin, planId, nextPath]);
 
   const onSubmit = async (values: LoginFormValues) => {
     setMessage(null);
@@ -59,7 +67,9 @@ export default function LoginClient({ initialPlan, initialOrigin }: Props) {
     try {
       const response = await loginWithCredentials(values);
       saveAuthSession(response.access_token, response.user.email, response.user.role, origin);
-      if (origin === "elegir_plan" && planId) {
+      if (nextPath) {
+        router.push(nextPath);
+      } else if (origin === "elegir_plan" && planId) {
         router.push(buildCheckoutUrl(planId));
       } else {
         router.push("/");
@@ -75,7 +85,8 @@ export default function LoginClient({ initialPlan, initialOrigin }: Props) {
     setIsGoogleSubmitting(true);
     try {
       const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "";
-      startGoogleOAuth(clientId, { origin, planId });
+      const oauthContext = nextPath ? { origin, planId, nextPath } : { origin, planId };
+      startGoogleOAuth(clientId, oauthContext);
     } catch (error) {
       const text = error instanceof Error ? error.message : "No se pudo iniciar sesión con Google.";
       setMessage(text);
@@ -96,12 +107,23 @@ export default function LoginClient({ initialPlan, initialOrigin }: Props) {
       <section className={styles.formPanel}>
         <div className={styles.card}>
           <header>
+            <p className={styles.sectionTag}>Acceso seguro</p>
             <h2>Iniciar sesión</h2>
             <p>Entrá para continuar.</p>
-            <p style={{ marginTop: "0.6rem" }}>
-              <Link href={registerHref} className={styles.inlineLink}>No tengo cuenta / Registrarme</Link>
-            </p>
           </header>
+
+          <div className={styles.switchRow}>
+            <Link href="/login" className={`${styles.switchItem} ${styles.switchItemActive}`}>
+              Ingresar
+            </Link>
+            <Link href={registerHref} className={styles.switchItem}>
+              Registrarme
+            </Link>
+          </div>
+
+          <p className={styles.switchHelp}>
+            <Link href={registerHref} className={styles.inlineLink}>No tengo cuenta / Registrarme</Link>
+          </p>
 
           <form className={styles.form} onSubmit={handleSubmit(onSubmit)} noValidate>
             <label htmlFor="email">Email</label>
@@ -127,9 +149,12 @@ export default function LoginClient({ initialPlan, initialOrigin }: Props) {
             />
             {errors.password && <p className={styles.fieldError}>{errors.password.message}</p>}
 
-            <button type="submit" className={styles.submit} disabled={!isValid || isSubmitting}>
-              {isSubmitting ? "Ingresando..." : "Ingresar"}
-            </button>
+            <div className={styles.actionsRow}>
+              <Link href="/recover-password" className={styles.hintLink}>Recuperar contraseña</Link>
+              <button type="submit" className={styles.submit} disabled={!isValid || isSubmitting}>
+                {isSubmitting ? "Ingresando..." : "Ingresar"}
+              </button>
+            </div>
           </form>
 
           {message && <p className={styles.formMessage}>{message}</p>}

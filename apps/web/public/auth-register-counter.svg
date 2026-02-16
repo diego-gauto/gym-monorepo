@@ -1,0 +1,81 @@
+<svg width="1440" height="1080" viewBox="0 0 1440 1080" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgMain" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#090D14"/>
+      <stop offset="45%" stop-color="#111A27"/>
+      <stop offset="100%" stop-color="#171013"/>
+    </linearGradient>
+    <radialGradient id="accentGym" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1130 250) rotate(130) scale(640 520)">
+      <stop stop-color="#BFFF00" stop-opacity="0.38"/>
+      <stop offset="1" stop-color="#BFFF00" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="desk" x1="0" y1="0" x2="1" y2="0">
+      <stop stop-color="#202A35"/>
+      <stop offset="1" stop-color="#161D25"/>
+    </linearGradient>
+    <linearGradient id="shirt" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#ECF2FF"/>
+      <stop offset="1" stop-color="#C8D4E8"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1440" height="1080" fill="url(#bgMain)"/>
+  <circle cx="1120" cy="250" r="480" fill="url(#accentGym)"/>
+
+  <g opacity="0.18" stroke="#EAF0FF">
+    <path d="M90 220H640" stroke-width="18" stroke-linecap="round"/>
+    <path d="M90 260H560" stroke-width="14" stroke-linecap="round"/>
+    <path d="M90 300H510" stroke-width="10" stroke-linecap="round"/>
+  </g>
+
+  <g opacity="0.45">
+    <rect x="860" y="116" width="430" height="260" rx="26" fill="#0E141B" stroke="#2C3A4A" stroke-width="3"/>
+    <rect x="890" y="162" width="370" height="86" rx="14" fill="#141C27"/>
+    <text x="915" y="215" fill="#BFFF00" font-size="44" font-family="Arial, Helvetica, sans-serif" font-weight="700">GYM MASTER</text>
+    <text x="915" y="282" fill="#D7DEE9" opacity="0.9" font-size="24" font-family="Arial, Helvetica, sans-serif">Inscripción Presencial</text>
+  </g>
+
+  <rect x="0" y="650" width="1440" height="430" fill="url(#desk)"/>
+  <rect x="0" y="632" width="1440" height="24" fill="#2A333D"/>
+
+  <g>
+    <ellipse cx="570" cy="540" rx="156" ry="182" fill="#101923"/>
+    <circle cx="570" cy="370" r="72" fill="#D8B49A"/>
+    <rect x="500" y="440" width="140" height="210" rx="38" fill="url(#shirt)"/>
+    <rect x="460" y="510" width="110" height="42" rx="18" fill="#D8B49A"/>
+    <rect x="570" y="510" width="120" height="42" rx="18" fill="#D8B49A"/>
+    <path d="M500 525L365 620" stroke="#D8B49A" stroke-width="34" stroke-linecap="round"/>
+    <path d="M635 525L760 610" stroke="#D8B49A" stroke-width="34" stroke-linecap="round"/>
+  </g>
+
+  <g>
+    <ellipse cx="920" cy="510" rx="164" ry="194" fill="#121A22"/>
+    <circle cx="920" cy="336" r="74" fill="#CFA88F"/>
+    <rect x="842" y="414" width="158" height="236" rx="46" fill="#BFFF00"/>
+    <rect x="862" y="450" width="120" height="22" rx="10" fill="#1B232E" opacity="0.58"/>
+    <rect x="794" y="516" width="130" height="46" rx="20" fill="#CFA88F"/>
+    <rect x="916" y="520" width="130" height="46" rx="20" fill="#CFA88F"/>
+    <path d="M905 546L834 612" stroke="#CFA88F" stroke-width="34" stroke-linecap="round"/>
+  </g>
+
+  <g>
+    <rect x="650" y="575" width="300" height="190" rx="16" fill="#F1F5FA"/>
+    <rect x="680" y="618" width="170" height="16" rx="8" fill="#CDD7E4"/>
+    <rect x="680" y="648" width="224" height="12" rx="6" fill="#DFE6EF"/>
+    <rect x="680" y="671" width="196" height="12" rx="6" fill="#DFE6EF"/>
+    <rect x="680" y="694" width="150" height="12" rx="6" fill="#DFE6EF"/>
+    <circle cx="889" cy="720" r="20" fill="#BFFF00"/>
+  </g>
+
+  <g opacity="0.7">
+    <rect x="1065" y="645" width="160" height="102" rx="16" fill="#171F28" stroke="#344355"/>
+    <rect x="1088" y="672" width="116" height="16" rx="8" fill="#5D738D"/>
+    <rect x="1088" y="702" width="90" height="12" rx="6" fill="#3E5063"/>
+  </g>
+
+  <g opacity="0.25" stroke="#DDE5F1">
+    <path d="M120 960H530" stroke-width="2"/>
+    <path d="M120 993H420" stroke-width="2"/>
+  </g>
+</svg>
+

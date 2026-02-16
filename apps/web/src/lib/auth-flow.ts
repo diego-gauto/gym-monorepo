@@ -1,5 +1,14 @@
 import type { IAuthResponse, ILoginRequest, IRegisterRequest } from "@gym-admin/shared";
-import { PlanType, UserRole } from "@gym-admin/shared";
+import {
+  AuthProvider,
+  CurrencyCode,
+  InvoiceStatus,
+  MembershipStatus,
+  PaymentMethod,
+  PlanType,
+  SubscriptionChangeRequestStatus,
+  UserRole,
+} from "@gym-admin/shared";
 
 export type PlanId = "monthly" | "quarterly" | "yearly";
 export type LoginOrigin = "elegir_plan" | "login_manual";
@@ -56,6 +65,221 @@ export type CheckoutPayPayload = {
   acceptedRecurringTerms: boolean;
 };
 
+export type CheckInActivity = {
+  slug: string;
+  name: string;
+};
+
+export type CheckInEligibility = {
+  canCheckIn: boolean;
+  reason: string | null;
+  user: {
+    uuid: string;
+    name: string;
+  };
+  membership: {
+    ok: boolean;
+    source: "SUBSCRIPTION" | "ONE_TIME_PERIOD" | "NONE";
+    inGrace: boolean;
+    graceEndsAt: string | null;
+  };
+  medicalCertificate: {
+    ok: boolean;
+    validUntil: string | null;
+  };
+};
+
+export type SubmitCheckInPayload = {
+  activitySlug: string;
+  gymLocation?: string;
+  qrToken: string;
+  latitude?: number;
+  longitude?: number;
+  deviceId?: string;
+};
+
+export type SubmitCheckInResponse = {
+  message: string;
+  checkIn: {
+    uuid: string;
+    checkInAt: string;
+    activitySlug?: string;
+    gymLocation?: string;
+  };
+};
+
+export type UserProfileResponse = {
+  uuid: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  phone: string | null;
+  avatarUrl: string | null;
+  role: UserRole;
+  status: MembershipStatus;
+  authProvider: AuthProvider;
+  emailVerifiedAt: string | null;
+  createdAt: string;
+  billingCard: {
+    cardBrand: string | null;
+    cardLastFour: string | null;
+    cardIssuer: string | null;
+    cardholderName: string | null;
+    cardExpirationMonth: number | null;
+    cardExpirationYear: number | null;
+  } | null;
+};
+
+export type UpdateProfilePayload = {
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  avatarUrl?: string;
+};
+
+export type ChangePasswordPayload = {
+  currentPassword: string;
+  newPassword: string;
+  confirmNewPassword: string;
+};
+
+export type AttendanceRange = "week" | "month" | "quarter" | "year";
+
+export type AttendanceHistoryResponse = {
+  range: AttendanceRange;
+  from: string;
+  total: number;
+  items: Array<{
+    uuid: string;
+    checkInAt: string;
+    activitySlug: string | null;
+    activityName: string;
+    gymLocation: string | null;
+    deviceId: string | null;
+  }>;
+};
+
+export type PaymentHistoryResponse = {
+  total: number;
+  items: Array<{
+    uuid: string;
+    amount: number;
+    currency: CurrencyCode;
+    status: InvoiceStatus;
+    paymentMethod: PaymentMethod;
+    paidAt: string | null;
+    createdAt: string;
+    appliedTo: string;
+    subscriptionId: number | null;
+  }>;
+};
+
+export type SubscriptionOverviewResponse = {
+  currentSubscription: {
+    uuid: string;
+    planId: PlanType;
+    status: MembershipStatus;
+    autoRenew: boolean;
+    startDate: string;
+    endDate: string;
+    billingCycleAnchorDay: number;
+  } | null;
+  pendingChange: {
+    uuid: string;
+    newPlanId: PlanType | null;
+    status: SubscriptionChangeRequestStatus;
+    effectiveAt: string;
+    createdAt: string;
+  } | null;
+  plans: Array<{
+    id: PlanType;
+    name: string;
+    price: number;
+    currency: CurrencyCode;
+  }>;
+};
+
+export type AdminCheckInQrResponse = {
+  gymLocation: string;
+  token?: string;
+  checkInUrl: string;
+  qrImageUrl: string;
+  generatedAt: string;
+};
+
+export type AdminRange = "week" | "month" | "quarter" | "year";
+
+export type AdminStatsResponse = {
+  range: AdminRange | string;
+  from: string;
+  totals: {
+    users: number;
+    newUsers: number;
+    activeUsers: number;
+    activeSubscriptions: number;
+    oneTimePaidUsers: number;
+    stoppedPaying: number;
+    cancelled: number;
+  };
+  subscriptionsByPlan: Record<string, number>;
+  oneTimeByAmount: Record<string, number>;
+};
+
+export type AdminSiteSettings = {
+  heroBadge: string;
+  heroTitle: string;
+  heroSubtitle: string;
+  heroBackgroundImage: string;
+  gymName: string;
+  gymAddress: string;
+  gymEmail: string;
+  gymPhone: string;
+};
+
+export type AdminTrainer = {
+  id: string;
+  name: string;
+  bio: string;
+  avatarUrl: string;
+  active: boolean;
+};
+
+export type AdminActivity = {
+  id: string;
+  slug: string;
+  name: string;
+  shortDescription: string;
+  description: string;
+  cardImage: string;
+  level: string;
+  duration: string;
+  benefits: string[];
+  schedule: string[];
+  successCriteria: string[];
+  trainerIds: string[];
+  active: boolean;
+};
+
+export type AdminBenefit = {
+  id: string;
+  title: string;
+  description: string;
+  iconKey: string;
+  active: boolean;
+};
+
+export type AdminPlan = {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  currency: CurrencyCode;
+  features: string[];
+  highlight: boolean;
+  badge?: string | null;
+  active: boolean;
+};
+
 const VALID_PLANS = new Set<PlanId>(["monthly", "quarterly", "yearly"]);
 
 const STORAGE = {
@@ -65,6 +289,28 @@ const STORAGE = {
 } as const;
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api";
+
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+
+  try {
+    const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, "=");
+    const decoded = atob(padded);
+    return JSON.parse(decoded) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+function isJwtExpired(token: string): boolean {
+  const payload = decodeJwtPayload(token);
+  const exp = payload?.exp;
+  if (typeof exp !== "number") return false;
+  const now = Math.floor(Date.now() / 1000);
+  return exp <= now;
+}
 
 async function parseApiError(response: Response): Promise<string> {
   try {
@@ -100,7 +346,7 @@ async function authRequest<TResponse>(path: string, body: object): Promise<TResp
   return response.json() as Promise<TResponse>;
 }
 
-async function authRequestWithToken<TResponse>(path: string, token: string, method: "GET" | "POST", body?: object): Promise<TResponse> {
+async function authRequestWithToken<TResponse>(path: string, token: string, method: "GET" | "POST" | "PATCH" | "DELETE", body?: object): Promise<TResponse> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method,
     headers: {
@@ -111,6 +357,10 @@ async function authRequestWithToken<TResponse>(path: string, token: string, meth
   });
 
   if (!response.ok) {
+    if (response.status === 401) {
+      clearAuthSession();
+      throw new Error("Tu sesión expiró. Ingresá nuevamente.");
+    }
     const message = await parseApiError(response);
     throw new Error(message);
   }
@@ -225,6 +475,11 @@ export function getSession(): SessionUser | null {
       parsed.user?.role;
 
     if (!accessToken || !email) return null;
+    if (isJwtExpired(accessToken)) {
+      window.localStorage.removeItem(STORAGE.session);
+      window.dispatchEvent(new Event("auth-session-changed"));
+      return null;
+    }
 
     const role = typeof parsedRole === "string" ? normalizeRole(parsedRole) : UserRole.USER;
     const origin = parsed.origin === "elegir_plan" || parsed.origin === "login_manual" ? parsed.origin : resolveOrigin(null);
@@ -279,6 +534,133 @@ export async function payCheckout(accessToken: string, payload: CheckoutPayPaylo
     status: string;
     paidAt: string | null;
   }>("/billing/checkout/pay", accessToken, "POST", payload);
+}
+
+export async function fetchCheckInEligibility(accessToken: string, gymLocation: string, qrToken: string) {
+  const query = new URLSearchParams({ gym: gymLocation, token: qrToken });
+  return authRequestWithToken<CheckInEligibility>(`/access/check-in/eligibility?${query.toString()}`, accessToken, "GET");
+}
+
+export async function fetchCheckInActivities(accessToken: string, gymLocation: string, qrToken: string) {
+  const query = new URLSearchParams({ gym: gymLocation, token: qrToken });
+  return authRequestWithToken<{ activities: CheckInActivity[] }>(`/access/check-in/activities?${query.toString()}`, accessToken, "GET");
+}
+
+export async function submitCheckIn(accessToken: string, payload: SubmitCheckInPayload) {
+  return authRequestWithToken<SubmitCheckInResponse>("/access/check-in", accessToken, "POST", payload);
+}
+
+export async function fetchAdminCheckInQr(accessToken: string, gymLocation: string, baseUrl?: string) {
+  const query = new URLSearchParams({ gym: gymLocation });
+  if (baseUrl) query.set('baseUrl', baseUrl);
+  return authRequestWithToken<AdminCheckInQrResponse>(`/access/check-in/admin/qr?${query.toString()}`, accessToken, "GET");
+}
+
+export async function fetchAdminStats(accessToken: string, range: AdminRange) {
+  const query = new URLSearchParams({ range });
+  return authRequestWithToken<AdminStatsResponse>(`/admin/stats?${query.toString()}`, accessToken, "GET");
+}
+
+export async function fetchAdminSiteSettings(accessToken: string) {
+  return authRequestWithToken<AdminSiteSettings>("/admin/content/site", accessToken, "GET");
+}
+
+export async function updateAdminSiteSettings(accessToken: string, payload: AdminSiteSettings) {
+  return authRequestWithToken<AdminSiteSettings>("/admin/content/site", accessToken, "PATCH", payload);
+}
+
+export async function fetchAdminTrainers(accessToken: string) {
+  return authRequestWithToken<AdminTrainer[]>("/admin/content/trainers", accessToken, "GET");
+}
+
+export async function createAdminTrainer(accessToken: string, payload: Omit<AdminTrainer, "id">) {
+  return authRequestWithToken<AdminTrainer>("/admin/content/trainers", accessToken, "POST", payload);
+}
+
+export async function updateAdminTrainer(accessToken: string, id: string, payload: Partial<Omit<AdminTrainer, "id">>) {
+  return authRequestWithToken<AdminTrainer>(`/admin/content/trainers/${id}`, accessToken, "PATCH", payload);
+}
+
+export async function deleteAdminTrainer(accessToken: string, id: string) {
+  return authRequestWithToken<{ deleted: boolean }>(`/admin/content/trainers/${id}`, accessToken, "DELETE");
+}
+
+export async function fetchAdminActivities(accessToken: string) {
+  return authRequestWithToken<AdminActivity[]>("/admin/content/activities", accessToken, "GET");
+}
+
+export async function createAdminActivity(accessToken: string, payload: Omit<AdminActivity, "id">) {
+  return authRequestWithToken<AdminActivity>("/admin/content/activities", accessToken, "POST", payload);
+}
+
+export async function updateAdminActivity(accessToken: string, id: string, payload: Partial<Omit<AdminActivity, "id">>) {
+  return authRequestWithToken<AdminActivity>(`/admin/content/activities/${id}`, accessToken, "PATCH", payload);
+}
+
+export async function deleteAdminActivity(accessToken: string, id: string) {
+  return authRequestWithToken<{ deleted: boolean }>(`/admin/content/activities/${id}`, accessToken, "DELETE");
+}
+
+export async function fetchAdminBenefits(accessToken: string) {
+  return authRequestWithToken<AdminBenefit[]>("/admin/content/benefits", accessToken, "GET");
+}
+
+export async function createAdminBenefit(accessToken: string, payload: Omit<AdminBenefit, "id">) {
+  return authRequestWithToken<AdminBenefit>("/admin/content/benefits", accessToken, "POST", payload);
+}
+
+export async function updateAdminBenefit(accessToken: string, id: string, payload: Partial<Omit<AdminBenefit, "id">>) {
+  return authRequestWithToken<AdminBenefit>(`/admin/content/benefits/${id}`, accessToken, "PATCH", payload);
+}
+
+export async function deleteAdminBenefit(accessToken: string, id: string) {
+  return authRequestWithToken<{ deleted: boolean }>(`/admin/content/benefits/${id}`, accessToken, "DELETE");
+}
+
+export async function fetchAdminPlans(accessToken: string) {
+  return authRequestWithToken<AdminPlan[]>("/admin/content/plans", accessToken, "GET");
+}
+
+export async function upsertAdminPlan(accessToken: string, payload: AdminPlan) {
+  return authRequestWithToken<AdminPlan>("/admin/content/plans", accessToken, "POST", payload);
+}
+
+export async function deleteAdminPlan(accessToken: string, id: string) {
+  return authRequestWithToken<{ deleted: boolean }>(`/admin/content/plans/${id}`, accessToken, "DELETE");
+}
+
+export async function fetchMyProfile(accessToken: string) {
+  return authRequestWithToken<UserProfileResponse>("/users/me", accessToken, "GET");
+}
+
+export async function updateMyProfile(accessToken: string, payload: UpdateProfilePayload) {
+  return authRequestWithToken<{ message: string; user: { firstName: string; lastName: string; phone: string | null; avatarUrl: string | null } }>(
+    "/users/me",
+    accessToken,
+    "PATCH",
+    payload,
+  );
+}
+
+export async function changeMyPassword(accessToken: string, payload: ChangePasswordPayload) {
+  return authRequestWithToken<{ message: string }>("/users/me/password", accessToken, "POST", payload);
+}
+
+export async function fetchMyAttendance(accessToken: string, range: AttendanceRange) {
+  const query = new URLSearchParams({ range });
+  return authRequestWithToken<AttendanceHistoryResponse>(`/users/me/attendance?${query.toString()}`, accessToken, "GET");
+}
+
+export async function fetchMyPayments(accessToken: string) {
+  return authRequestWithToken<PaymentHistoryResponse>("/users/me/payments", accessToken, "GET");
+}
+
+export async function fetchMySubscriptionOverview(accessToken: string) {
+  return authRequestWithToken<SubscriptionOverviewResponse>("/users/me/subscription", accessToken, "GET");
+}
+
+export async function cancelMySubscription(accessToken: string) {
+  return authRequestWithToken<{ message: string }>("/billing/cancel", accessToken, "POST");
 }
 
 export function verifyUserEmail(_email?: string) {

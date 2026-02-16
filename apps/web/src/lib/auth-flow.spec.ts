@@ -4,6 +4,13 @@ import {
   buildCheckoutUrl,
   clearAuthFlowState,
   clearSelectedPlan,
+  deleteAdminTrainer,
+  fetchAdminActivities,
+  fetchCheckInActivities,
+  fetchCheckInEligibility,
+  fetchAdminCheckInQr,
+  fetchAdminSiteSettings,
+  fetchAdminStats,
   getSession,
   isPlanId,
   loginWithGoogleCode,
@@ -16,6 +23,8 @@ import {
   resolveOrigin,
   resolvePlan,
   saveAuthSession,
+  submitCheckIn,
+  updateAdminSiteSettings,
 } from './auth-flow';
 
 describe('auth-flow utility', () => {
@@ -190,5 +199,211 @@ describe('auth-flow utility', () => {
       }),
     );
     expect(result.invoiceUuid).toBe('inv-1');
+  });
+
+  it('calls check-in eligibility endpoint with bearer token', async () => {
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>;
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ canCheckIn: true }),
+    });
+
+    const result = await fetchCheckInEligibility('token-123', 'main', 'token-abc');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3001/api/access/check-in/eligibility?gym=main&token=token-abc',
+      expect.objectContaining({
+        method: 'GET',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer token-123',
+        }),
+      }),
+    );
+    expect(result.canCheckIn).toBe(true);
+  });
+
+  it('calls check-in activities endpoint with bearer token', async () => {
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>;
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ activities: [{ slug: 'yoga', name: 'Yoga' }] }),
+    });
+
+    const result = await fetchCheckInActivities('token-123', 'main', 'token-abc');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3001/api/access/check-in/activities?gym=main&token=token-abc',
+      expect.objectContaining({
+        method: 'GET',
+      }),
+    );
+    expect(result.activities[0].slug).toBe('yoga');
+  });
+
+  it('submits check-in payload with bearer token', async () => {
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>;
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ message: 'ok', checkIn: { uuid: 'att-1' } }),
+    });
+
+    const result = await submitCheckIn('token-123', {
+      activitySlug: 'yoga',
+      gymLocation: 'main',
+      qrToken: 'token-abc',
+      latitude: -34.6,
+      longitude: -58.4,
+      deviceId: 'mobile',
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3001/api/access/check-in',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          activitySlug: 'yoga',
+          gymLocation: 'main',
+          qrToken: 'token-abc',
+          latitude: -34.6,
+          longitude: -58.4,
+          deviceId: 'mobile',
+        }),
+      }),
+    );
+    expect(result.checkIn.uuid).toBe('att-1');
+  });
+
+  it('calls admin check-in qr endpoint with bearer token', async () => {
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>;
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        gymLocation: 'main',
+        checkInUrl: 'http://localhost:3000/check-in?gym=main',
+        qrImageUrl: 'https://example.test/qr.png',
+        generatedAt: '2026-01-01T00:00:00.000Z',
+      }),
+    });
+
+    const result = await fetchAdminCheckInQr('token-123', 'main');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3001/api/access/check-in/admin/qr?gym=main',
+      expect.objectContaining({
+        method: 'GET',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer token-123',
+        }),
+      }),
+    );
+    expect(result.gymLocation).toBe('main');
+  });
+
+  it('calls admin stats endpoint by range', async () => {
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>;
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        range: 'month',
+        from: '2026-01-01T00:00:00.000Z',
+        totals: {
+          users: 10,
+          newUsers: 3,
+          activeUsers: 8,
+          activeSubscriptions: 4,
+          oneTimePaidUsers: 2,
+          stoppedPaying: 1,
+          cancelled: 1,
+        },
+        subscriptionsByPlan: { MONTHLY: 2 },
+        oneTimeByAmount: {},
+      }),
+    });
+
+    const result = await fetchAdminStats('token-123', 'month');
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3001/api/admin/stats?range=month',
+      expect.objectContaining({
+        method: 'GET',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer token-123',
+        }),
+      }),
+    );
+    expect(result.totals.users).toBe(10);
+  });
+
+  it('calls admin site get and patch endpoints with bearer token', async () => {
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>;
+    const payload = {
+      heroBadge: '#1',
+      heroTitle: 'Hero',
+      heroSubtitle: 'Subtitle',
+      heroBackgroundImage: '/hero.png',
+      gymName: 'Gym',
+      gymAddress: 'Address',
+      gymEmail: 'mail@gym.com',
+      gymPhone: '+54',
+    };
+
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => payload,
+    });
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => payload,
+    });
+
+    const current = await fetchAdminSiteSettings('token-123');
+    const updated = await updateAdminSiteSettings('token-123', payload);
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      'http://localhost:3001/api/admin/content/site',
+      expect.objectContaining({
+        method: 'GET',
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      'http://localhost:3001/api/admin/content/site',
+      expect.objectContaining({
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      }),
+    );
+    expect(current.gymName).toBe('Gym');
+    expect(updated.heroTitle).toBe('Hero');
+  });
+
+  it('calls admin activities and trainer delete endpoints', async () => {
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>;
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ([]),
+    });
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ deleted: true }),
+    });
+
+    const activities = await fetchAdminActivities('token-123');
+    const deletion = await deleteAdminTrainer('token-123', 'tr-1');
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      'http://localhost:3001/api/admin/content/activities',
+      expect.objectContaining({
+        method: 'GET',
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      'http://localhost:3001/api/admin/content/trainers/tr-1',
+      expect.objectContaining({
+        method: 'DELETE',
+      }),
+    );
+    expect(activities).toEqual([]);
+    expect(deletion.deleted).toBe(true);
   });
 });

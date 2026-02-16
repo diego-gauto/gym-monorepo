@@ -1,19 +1,19 @@
 .disciplines {
-  padding: 150px 0 var(--spacing-l);
+  padding: clamp(5.5rem, 10vw, 9.4rem) 0 var(--spacing-l);
   background-color: var(--bg-surface);
   scroll-margin-top: 140px;
 }
 
 .sectionTitle {
   text-align: center;
-  font-size: 2.5rem;
+  font-size: clamp(2rem, 4.2vw, 2.5rem);
   margin-bottom: var(--spacing-l);
 }
 
 .grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: calc(var(--spacing-m) * 1.25);
+  gap: clamp(1rem, 2.6vw, calc(var(--spacing-m) * 1.15));
 }
 
 @media (max-width: 1024px) {
@@ -23,6 +23,11 @@
 }
 
 @media (max-width: 640px) {
+  .disciplines {
+    padding-top: 5rem;
+    scroll-margin-top: 92px;
+  }
+
   .grid {
     grid-template-columns: 1fr;
   }
@@ -30,7 +35,7 @@
 
 .card {
   position: relative;
-  height: 420px;
+  height: clamp(320px, 34vw, 420px);
   background-size: cover;
   background-position: center;
   border-radius: 24px;
@@ -89,12 +94,12 @@
 .cardContent {
   position: relative;
   z-index: 2;
-  padding: var(--spacing-m);
+  padding: clamp(1rem, 2.8vw, var(--spacing-m));
   width: 100%;
 }
 
 .cardTitle {
-  font-size: 1.75rem;
+  font-size: clamp(1.4rem, 3.2vw, 1.75rem);
   margin-bottom: 0.25rem;
   color: var(--text-main);
 }
@@ -105,7 +110,7 @@
 
 .cardDesc {
   color: var(--text-muted);
-  font-size: 0.9rem;
+  font-size: clamp(0.86rem, 1.6vw, 0.92rem);
   margin-bottom: 1rem;
 }
 
@@ -134,4 +139,18 @@
   transform: translateY(0);
   color: #000;
   background: #fff23a; /* amarillo botón */
+}
+
+@media (max-width: 640px) {
+  .card {
+    height: 340px;
+    border-radius: 20px;
+  }
+
+  .more {
+    opacity: 1;
+    transform: translateY(0);
+    color: #000;
+    background: #fff23a;
+  }
 }

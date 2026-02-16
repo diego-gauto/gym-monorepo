@@ -4,6 +4,7 @@ export type Activity = {
   shortDescription: string;
   description: string;
   cardImage: string;
+  cardImagePosition?: string;
   benefits: string[];
   schedule: string[];
   teachers: string[];
@@ -84,6 +85,7 @@ export const ACTIVITIES: Activity[] = [
     shortDescription: "Entrenamiento funcional",
     description: "Circuitos integrales que mejoran movimientos del día a día con foco en fuerza, agilidad y estabilidad.",
     cardImage: "/funcional.svg",
+    cardImagePosition: "50% 44%",
     benefits: ["Mejor coordinación global", "Mayor estabilidad de core", "Movilidad aplicada"],
     schedule: ["Lunes a Viernes · 08:00, 12:00 y 19:30", "Sábados · 11:00"],
     teachers: ["Camila Torres", "Leandro Núñez"],

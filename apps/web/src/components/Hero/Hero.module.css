@@ -1,7 +1,7 @@
 .hero {
   position: relative;
-  height: 100vh;
-  max-height: 100vh;
+  min-height: 100vh;
+  min-height: 100svh;
   width: 100%;
   display: flex;
   flex-direction: column;
@@ -11,7 +11,7 @@
   background-size: cover;
   background-position: center;
   overflow: hidden;
-  padding: 80px var(--spacing-s) 20px;
+  padding: calc(var(--header-height) + 3.2rem) var(--spacing-s) 1.5rem;
   text-align: center;
 }
 
@@ -144,12 +144,89 @@
 }
 
 @media (max-width: 768px) {
+  .hero {
+    min-height: 74svh;
+    justify-content: flex-start;
+    padding: calc(var(--header-height) + 2.5rem) 0.85rem 1.25rem;
+  }
+
+  .title {
+    font-size: clamp(1.9rem, 8.8vw, 2.7rem);
+    margin-bottom: 0.85rem;
+  }
+
+  .subtitle {
+    margin-bottom: 1.1rem;
+    line-height: 1.45;
+  }
+
+  .stats {
+    gap: 1.1rem;
+    padding: 0.75rem 0;
+    margin-bottom: 0.95rem;
+  }
+
+  .statNumber {
+    font-size: 1.75rem;
+  }
+
+  .statLabel {
+    font-size: 0.72rem;
+  }
+
   .actions {
     flex-direction: column;
+    width: 100%;
+    max-width: 360px;
   }
-  
-  .primaryBtn, .secondaryBtn {
+
+  .primaryBtn,
+  .secondaryBtn {
     width: 100%;
     text-align: center;
+    padding: 0.85rem 1rem;
+    font-size: 0.88rem;
+  }
+}
+
+@media (max-width: 430px) {
+  .hero {
+    min-height: 68svh;
+    padding: calc(var(--header-height) + 2.2rem) 0.75rem 1rem;
+  }
+
+  .stats {
+    gap: 0.65rem;
+  }
+
+  .statNumber {
+    font-size: 1.45rem;
+  }
+
+  .statLabel {
+    font-size: 0.66rem;
+    letter-spacing: 0.02em;
+  }
+}
+
+@media (max-width: 370px) {
+  .title {
+    font-size: 1.75rem;
+  }
+
+  .subtitle {
+    font-size: 0.92rem;
+  }
+
+  .stats {
+    gap: 0.5rem;
+  }
+
+  .statNumber {
+    font-size: 1.3rem;
+  }
+
+  .statLabel {
+    font-size: 0.62rem;
   }
 }

@@ -20,6 +20,7 @@ import { startGoogleOAuth } from "../../lib/google-oauth";
 type Props = {
   initialPlan: string | null;
   initialOrigin: string | null;
+  initialNext?: string | null;
   initialGoogleNotRegistered?: boolean;
 };
 
@@ -34,7 +35,12 @@ type RegisterFormValues = {
 
 const ARGENTINA_PHONE_REGEX = /^(?:\+54\s?)?(?:9\s?)?(?:\(?\d{2,4}\)?[\s-]?)?\d{3,4}[\s-]?\d{4}$/;
 
-export default function RegisterClient({ initialPlan, initialOrigin, initialGoogleNotRegistered = false }: Props) {
+export default function RegisterClient({
+  initialPlan,
+  initialOrigin,
+  initialNext = null,
+  initialGoogleNotRegistered = false,
+}: Props) {
   const router = useRouter();
   const [message, setMessage] = useState<string | null>(
     initialGoogleNotRegistered ? "Tu cuenta de Google todavía no está registrada. Completá el alta primero." : null,
@@ -60,13 +66,20 @@ export default function RegisterClient({ initialPlan, initialOrigin, initialGoog
 
   const planId = useMemo(() => resolvePlan(initialPlan), [initialPlan]);
   const origin = useMemo(() => resolveOrigin(initialOrigin), [initialOrigin]);
+  const nextPath = useMemo(() => {
+    if (!initialNext) return null;
+    if (!initialNext.startsWith('/')) return null;
+    if (initialNext.startsWith('//')) return null;
+    return initialNext;
+  }, [initialNext]);
   const passwordValue = watch("password");
 
   const loginHref = useMemo(() => {
     const params = new URLSearchParams({ origin });
     if (planId) params.set("plan", planId);
+    if (nextPath) params.set("next", nextPath);
     return `/login?${params.toString()}`;
-  }, [origin, planId]);
+  }, [origin, planId, nextPath]);
 
   const onSubmit = async (values: RegisterFormValues) => {
     setMessage(null);
@@ -94,7 +107,9 @@ export default function RegisterClient({ initialPlan, initialOrigin, initialGoog
       // If local session persistence fails, continue with navigation after successful register.
     }
 
-    if (origin === "elegir_plan" && planId) {
+    if (nextPath) {
+      router.push(nextPath);
+    } else if (origin === "elegir_plan" && planId) {
       router.push(buildCheckoutUrl(planId));
     } else {
       router.push("/");
@@ -107,7 +122,8 @@ export default function RegisterClient({ initialPlan, initialOrigin, initialGoog
     setIsGoogleSubmitting(true);
     try {
       const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "";
-      startGoogleOAuth(clientId, { origin, planId });
+      const oauthContext = nextPath ? { origin, planId, nextPath } : { origin, planId };
+      startGoogleOAuth(clientId, oauthContext);
     } catch (error) {
       const text = error instanceof Error ? error.message : "No se pudo continuar con Google.";
       setMessage(text);
@@ -128,12 +144,23 @@ export default function RegisterClient({ initialPlan, initialOrigin, initialGoog
       <section className={styles.formPanel}>
         <div className={styles.card}>
           <header>
+            <p className={styles.sectionTag}>Alta presencial y online</p>
             <h2>Crear cuenta</h2>
             <p>Completá tus datos para continuar.</p>
-            <p style={{ marginTop: "0.6rem" }}>
-              <Link href={loginHref} className={styles.inlineLink}>Ya tengo cuenta / Ingresar</Link>
-            </p>
           </header>
+
+          <div className={styles.switchRow}>
+            <Link href={loginHref} className={styles.switchItem}>
+              Ingresar
+            </Link>
+            <Link href="/register" className={`${styles.switchItem} ${styles.switchItemActive}`}>
+              Registrarme
+            </Link>
+          </div>
+
+          <p className={styles.switchHelp}>
+            <Link href={loginHref} className={styles.inlineLink}>Ya tengo cuenta / Ingresar</Link>
+          </p>
 
           <form className={styles.form} onSubmit={handleSubmit(onSubmit)} noValidate>
             <label htmlFor="firstName">Nombre</label>
@@ -214,9 +241,12 @@ export default function RegisterClient({ initialPlan, initialOrigin, initialGoog
             />
             {errors.confirmPassword && <p className={styles.fieldError}>{errors.confirmPassword.message}</p>}
 
-            <button type="submit" className={styles.submit} disabled={!isValid || isSubmitting}>
-              {isSubmitting ? "Creando cuenta..." : "Crear cuenta"}
-            </button>
+            <div className={styles.actionsRow}>
+              <Link href="/recover-password" className={styles.hintLink}>Recuperar contraseña</Link>
+              <button type="submit" className={styles.submit} disabled={!isValid || isSubmitting}>
+                {isSubmitting ? "Creando cuenta..." : "Crear cuenta"}
+              </button>
+            </div>
           </form>
 
           {message && <p className={styles.formMessage}>{message}</p>}

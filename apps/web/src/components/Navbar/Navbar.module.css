@@ -166,11 +166,32 @@
 }
 
 @media (max-width: 768px) {
+  .header {
+    top: 10px;
+    left: 12px;
+    right: 12px;
+  }
+
   .links {
     display: none;
   }
 
   .container {
     padding: 0.55rem 0.9rem;
+  }
+}
+
+@media (max-width: 430px) {
+  .header {
+    left: 8px;
+    right: 8px;
+  }
+
+  .container {
+    padding: 0.5rem 0.7rem;
+  }
+
+  .brandText {
+    font-size: 1rem;
   }
 }

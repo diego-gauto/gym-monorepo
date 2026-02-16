@@ -1,0 +1,367 @@
+.page {
+  min-height: 100svh;
+  padding: calc(var(--header-height) + 2rem) 1rem 2.5rem;
+  max-width: 1180px;
+  margin: 0 auto;
+  display: grid;
+  gap: 1rem;
+}
+
+.hero {
+  display: flex;
+  justify-content: space-between;
+  gap: 1.2rem;
+  align-items: center;
+  border: 1px solid var(--glass-border);
+  background:
+    radial-gradient(circle at top right, rgba(191, 255, 0, 0.16), transparent 45%),
+    rgba(255, 255, 255, 0.03);
+  border-radius: 20px;
+  padding: 1.1rem 1.2rem;
+}
+
+.identity {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.avatarWrap {
+  width: 86px;
+  height: 86px;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 2px solid rgba(191, 255, 0, 0.45);
+  flex-shrink: 0;
+}
+
+.avatar {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatarPlaceholder {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #1a1f27, #2f3b4f);
+  display: grid;
+  place-items: center;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #d9e0ea;
+}
+
+.kicker {
+  color: var(--primary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.72rem;
+  margin-bottom: 0.15rem;
+}
+
+.hero h1 {
+  font-size: clamp(1.45rem, 3.1vw, 2rem);
+  margin-bottom: 0.2rem;
+}
+
+.hero p {
+  color: var(--text-muted);
+}
+
+.heroActions {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.card,
+.sectionCard {
+  border: 1px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 18px;
+  padding: 1rem 1.1rem;
+}
+
+.card h2,
+.sectionCard h2 {
+  margin-bottom: 0.9rem;
+  color: var(--primary);
+  font-size: 1.14rem;
+}
+
+.form {
+  display: grid;
+  gap: 0.72rem;
+}
+
+.form label {
+  display: grid;
+  gap: 0.35rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.form input {
+  border: 1px solid var(--glass-border);
+  background: rgba(0, 0, 0, 0.22);
+  color: var(--text-main);
+  border-radius: 10px;
+  padding: 0.7rem 0.8rem;
+}
+
+.form input:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.primaryButton,
+.secondaryButton,
+.dangerButton,
+.filterButton,
+.filterActive {
+  border-radius: 10px;
+  border: 1px solid var(--glass-border);
+  padding: 0.62rem 0.9rem;
+  font-weight: 700;
+  font-size: 0.84rem;
+  cursor: pointer;
+}
+
+.primaryButton {
+  background: var(--primary);
+  color: #090a0b;
+  border-color: var(--primary);
+}
+
+.primaryButton:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.secondaryButton {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-main);
+}
+
+.dangerButton {
+  background: rgba(227, 6, 19, 0.12);
+  border-color: rgba(227, 6, 19, 0.42);
+  color: #ffb4ba;
+}
+
+.hiddenInput {
+  display: none;
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+
+.filterRow {
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.filterButton {
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-muted);
+}
+
+.filterActive {
+  background: rgba(191, 255, 0, 0.18);
+  color: var(--text-main);
+  border-color: rgba(191, 255, 0, 0.45);
+}
+
+.list {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.listRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.7rem;
+  align-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 11px;
+  padding: 0.72rem 0.8rem;
+}
+
+.listRow strong {
+  display: block;
+  margin-bottom: 0.15rem;
+}
+
+.listRow p {
+  color: var(--text-muted);
+  font-size: 0.84rem;
+}
+
+.rightAlign {
+  text-align: right;
+}
+
+.empty {
+  color: var(--text-muted);
+  font-size: 0.92rem;
+}
+
+.messageBox,
+.loadingBox,
+.errorBox,
+.pendingBox,
+.infoBox {
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 0.8rem 0.9rem;
+}
+
+.messageBox {
+  background: rgba(191, 255, 0, 0.1);
+}
+
+.loadingBox,
+.errorBox,
+.infoBox {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.pendingBox {
+  background: rgba(255, 255, 255, 0.05);
+  margin-bottom: 0.8rem;
+}
+
+.subscriptionSummary {
+  margin-bottom: 0.85rem;
+  color: var(--text-muted);
+}
+
+.subscriptionActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.statusPill {
+  border: 1px solid rgba(191, 255, 0, 0.45);
+  padding: 0.3rem 0.56rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  color: var(--primary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.inlineLink {
+  color: var(--primary);
+  text-decoration: underline;
+}
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  background: rgba(0, 0, 0, 0.66);
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+}
+
+.modal {
+  width: min(560px, 100%);
+  border: 1px solid var(--glass-border);
+  background: #101114;
+  border-radius: 18px;
+  padding: 1.2rem;
+}
+
+.checkIcon {
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: rgba(191, 255, 0, 0.22);
+  color: var(--primary);
+  font-weight: 800;
+  margin-bottom: 0.75rem;
+}
+
+.modal h3 {
+  margin-bottom: 0.55rem;
+}
+
+.modal p {
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.modalActions {
+  margin-top: 1rem;
+  display: flex;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 980px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .page {
+    padding-top: calc(var(--header-height) + 1.4rem);
+  }
+
+  .hero {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .heroActions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 460px) {
+  .identity {
+    width: 100%;
+  }
+
+  .avatarWrap {
+    width: 72px;
+    height: 72px;
+  }
+
+  .sectionHeader {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .listRow {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .rightAlign {
+    text-align: left;
+  }
+}
+

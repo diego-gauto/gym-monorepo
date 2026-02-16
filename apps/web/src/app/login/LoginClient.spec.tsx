@@ -2,17 +2,18 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { UserRole } from '@gym-admin/shared';
 import LoginClient from './LoginClient';
 import * as authFlow from '../../lib/auth-flow';
 import * as googleOAuth from '../../lib/google-oauth';
 
 const mockPush = vi.fn();
 
-vi.mock('next/link', () => {
+vi.mock('next/link', async () => {
+  const react = await import('react');
   return {
-    default: ({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) => (
-      <a href={href} className={className}>{children}</a>
-    ),
+    default: ({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) =>
+      react.createElement('a', { href, className }, children),
   };
 });
 
@@ -76,7 +77,7 @@ describe('LoginClient', () => {
       access_token: 'jwt-token',
       user: {
         email: 'user@test.com',
-        role: 'USER',
+        role: UserRole.USER,
       },
     });
 
@@ -102,7 +103,7 @@ describe('LoginClient', () => {
       access_token: 'jwt-token',
       user: {
         email: 'user@test.com',
-        role: 'USER',
+        role: UserRole.USER,
       },
     });
 

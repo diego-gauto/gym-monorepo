@@ -1,7 +1,7 @@
 import React from "react";
 import { notFound } from "next/navigation";
 import Footer from "../../../components/Footer/Footer";
-import { ACTIVITIES_BY_SLUG } from "../../../data/activities";
+import { fetchPublicActivityBySlug, fetchPublicHomeContent } from "../../../lib/public-content";
 import styles from "./page.module.css";
 
 export default async function ActivityDetailPage({
@@ -10,7 +10,10 @@ export default async function ActivityDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const activity = ACTIVITIES_BY_SLUG[slug];
+  const [activity, home] = await Promise.all([
+    fetchPublicActivityBySlug(slug),
+    fetchPublicHomeContent(),
+  ]);
 
   if (!activity) {
     notFound();
@@ -20,7 +23,10 @@ export default async function ActivityDetailPage({
     <div className={styles.page}>
       <header
         className={styles.hero}
-        style={{ backgroundImage: `url(${activity.cardImage})` }}
+        style={{
+          backgroundImage: `url(${activity.cardImage})`,
+          backgroundPosition: "center",
+        }}
       >
         <div className={styles.heroOverlay} />
         <div className={`container ${styles.heroContent}`}>
@@ -30,27 +36,29 @@ export default async function ActivityDetailPage({
       </header>
 
       <main className={`container ${styles.content}`}>
-        <section className={styles.block}>
-          <h2>Beneficios</h2>
-          <ul>
-            {activity.benefits.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
-        </section>
+        <section className={styles.topGrid}>
+          <section className={styles.block}>
+            <h2>Beneficios</h2>
+            <ul>
+              {activity.benefits.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </section>
 
-        <section className={styles.block}>
-          <h2>Horarios</h2>
-          <ul>
-            {activity.schedule.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
-        </section>
+          <section className={styles.block}>
+            <h2>Horarios</h2>
+            <ul>
+              {activity.schedule.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </section>
 
-        <section className={styles.block}>
-          <h2>Profesores</h2>
-          <p>{activity.teachers.join(" · ")}</p>
+          <section className={styles.block}>
+            <h2>Profesores</h2>
+            <p>{(activity.teachers ?? []).join(" · ") || "A definir"}</p>
+          </section>
         </section>
 
         <section className={styles.metaGrid}>
@@ -63,7 +71,7 @@ export default async function ActivityDetailPage({
             <p>{activity.duration}</p>
           </article>
           <article className={styles.metaCard}>
-            <h3>Criterios de éxito</h3>
+            <h3>Qué necesitamos de vos</h3>
             <ul>
               {activity.successCriteria.map((item) => (
                 <li key={item}>{item}</li>
@@ -72,7 +80,11 @@ export default async function ActivityDetailPage({
           </article>
         </section>
       </main>
-      <Footer />
+      <Footer
+        gymName={home.site.gymName}
+        gymDescription={home.site.heroSubtitle}
+        activities={home.activities.map((item) => ({ slug: item.slug, name: item.name }))}
+      />
     </div>
   );
 }

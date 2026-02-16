@@ -1,18 +1,33 @@
 import React from "react";
 import styles from "./Footer.module.css";
 
-export default function Footer() {
+type FooterProps = {
+  gymName?: string;
+  gymDescription?: string;
+  activities?: Array<{ slug: string; name: string }>;
+};
+
+export default function Footer({
+  gymName = "GYM MASTER",
+  gymDescription = "Tu transformación comienza hoy. Sumate a la elite del entrenamiento nacional con el respaldo de profesionales certificados.",
+  activities = [
+    { slug: "musculacion", name: "Musculación" },
+    { slug: "crossfit", name: "Cross Training" },
+    { slug: "yoga", name: "Yoga" },
+    { slug: "boxing", name: "Boxeo" },
+    { slug: "spinning", name: "Spinning" },
+    { slug: "funcional", name: "Funcional" },
+  ],
+}: FooterProps) {
   return (
     <footer className={styles.footer}>
       <div className={`${styles.container} container`}>
         <div className={styles.brand}>
           <h2 className="accent-font">
-            <span style={{ color: "var(--primary)" }}>GYM</span> MASTER
+            <span style={{ color: "var(--primary)" }}>{gymName.split(" ")[0] ?? "GYM"}</span>{" "}
+            {gymName.split(" ").slice(1).join(" ") || "MASTER"}
           </h2>
-          <p>
-            Tu transformación comienza hoy. Sumate a la elite del entrenamiento
-            nacional con el respaldo de profesionales certificados.
-          </p>
+          <p>{gymDescription}</p>
           <div className={styles.socials}>
             <a className={styles.socialIcon} href="#" aria-label="Instagram">
               <svg
@@ -69,7 +84,7 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className={styles.linkGroup}>
+        <div className={`${styles.linkGroup} ${styles.companyGroup}`}>
           <h3 className={styles.groupTitle}>Empresa</h3>
           <ul className={styles.linkList}>
             <li>
@@ -84,31 +99,18 @@ export default function Footer() {
           </ul>
         </div>
 
-        <div className={styles.linkGroup}>
+        <div className={`${styles.linkGroup} ${styles.activitiesGroup}`}>
           <h3 className={styles.groupTitle}>Actividades</h3>
           <ul className={`${styles.linkList} ${styles.twoCol}`}>
-            <li>
-              <a href="/disciplinas/musculacion">Musculación</a>
-            </li>
-            <li>
-              <a href="/disciplinas/crossfit">Cross Training</a>
-            </li>
-            <li>
-              <a href="/disciplinas/yoga">Yoga</a>
-            </li>
-            <li>
-              <a href="/disciplinas/boxing">Boxeo</a>
-            </li>
-            <li>
-              <a href="/disciplinas/spinning">Spinning</a>
-            </li>
-            <li>
-              <a href="/disciplinas/funcional">Funcional</a>
-            </li>
+            {activities.slice(0, 8).map((activity) => (
+              <li key={activity.slug}>
+                <a href={`/actividades/${activity.slug}`}>{activity.name}</a>
+              </li>
+            ))}
           </ul>
         </div>
 
-        <div className={styles.linkGroup}>
+        <div className={`${styles.linkGroup} ${styles.legalGroup}`}>
           <h3 className={styles.groupTitle}>Legal</h3>
           <ul className={styles.linkList}>
             <li>

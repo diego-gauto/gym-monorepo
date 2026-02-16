@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import styles from "./Navbar.module.css";
 import { getSession } from "../../lib/auth-flow";
+import { UserRole } from "@gym-admin/shared";
 
 const NAV_LINKS = [
   { href: "/", sectionHref: "#inicio", label: "Inicio" },
@@ -18,14 +19,22 @@ export default function Navbar() {
   const [shown, setShown] = useState(false);
   const [activeSection, setActiveSection] = useState("#inicio");
   const [hasSession, setHasSession] = useState(false);
+  const [isAdminSession, setIsAdminSession] = useState(false);
   const pathname = usePathname();
 
   useEffect(() => {
     setMounted(true);
-    setHasSession(Boolean(getSession()));
+    const initialSession = getSession();
+    setHasSession(Boolean(initialSession));
+    setIsAdminSession(initialSession?.role === UserRole.ADMIN);
     const raf = requestAnimationFrame(() => setShown(true));
-    const onStorageChange = () => setHasSession(Boolean(getSession()));
-    const onSessionChange = () => setHasSession(Boolean(getSession()));
+    const syncSession = () => {
+      const currentSession = getSession();
+      setHasSession(Boolean(currentSession));
+      setIsAdminSession(currentSession?.role === UserRole.ADMIN);
+    };
+    const onStorageChange = () => syncSession();
+    const onSessionChange = () => syncSession();
     window.addEventListener("storage", onStorageChange);
     window.addEventListener("focus", onStorageChange);
     window.addEventListener("auth-session-changed", onSessionChange);
@@ -126,7 +135,10 @@ export default function Navbar() {
           </ul>
 
           <div className={styles.rightActions}>
-            <Link href={hasSession ? "/profile" : "/register?origin=login_manual"} className={styles.loginLink}>
+            <Link
+              href={hasSession ? (isAdminSession ? "/admin/dashboard" : "/profile") : "/register?origin=login_manual"}
+              className={styles.loginLink}
+            >
               <svg
                 className={styles.userIcon}
                 width="18"
@@ -142,7 +154,7 @@ export default function Navbar() {
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                 <circle cx="12" cy="7" r="4" />
               </svg>
-              {hasSession ? "Mi perfil" : "Ingresar"}
+              {hasSession ? (isAdminSession ? "Admin" : "Mi perfil") : "Ingresar"}
             </Link>
           </div>
         </div>

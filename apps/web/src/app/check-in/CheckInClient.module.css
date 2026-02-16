@@ -1,0 +1,193 @@
+.page {
+  min-height: 100vh;
+  padding: calc(var(--header-height) + 3.2rem) 1.2rem 2.2rem;
+  background:
+    radial-gradient(circle at 15% 10%, rgba(191, 255, 0, 0.12), transparent 36%),
+    radial-gradient(circle at 85% 88%, rgba(227, 6, 19, 0.17), transparent 34%),
+    linear-gradient(180deg, #090909 0%, #101010 100%);
+}
+
+.panel {
+  max-width: 920px;
+  margin: 0 auto;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 24px;
+  padding: 1.4rem;
+  background: rgba(18, 18, 18, 0.82);
+  box-shadow: 0 28px 60px rgba(0, 0, 0, 0.35);
+}
+
+.header {
+  margin-bottom: 1rem;
+}
+
+.kicker {
+  display: inline-block;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.72);
+  margin-bottom: 0.45rem;
+}
+
+.header h1 {
+  font-size: clamp(1.5rem, 3.4vw, 2.35rem);
+  margin-bottom: 0.45rem;
+}
+
+.header p {
+  color: rgba(255, 255, 255, 0.72);
+  max-width: 720px;
+}
+
+.content {
+  display: grid;
+  gap: 1.1rem;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.activityCard {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.01));
+  border-radius: 18px;
+  min-height: 130px;
+  color: var(--text-main);
+  padding: 0.9rem;
+  text-align: left;
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.activityCard:hover {
+  transform: translateY(-2px);
+  border-color: rgba(191, 255, 0, 0.5);
+}
+
+.activityCardSelected {
+  border-color: var(--primary);
+  box-shadow: 0 10px 26px rgba(191, 255, 0, 0.16);
+}
+
+.icon {
+  font-size: 1.55rem;
+  display: inline-block;
+  margin-bottom: 0.75rem;
+}
+
+.name {
+  display: block;
+  font-weight: 700;
+}
+
+.submitRow {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.submitRow p {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.primaryAction,
+.secondaryAction {
+  border-radius: 999px;
+  padding: 0.75rem 1.1rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  transition: transform 160ms ease, opacity 160ms ease, background-color 160ms ease;
+}
+
+.primaryAction {
+  background: var(--primary);
+  color: #121212;
+}
+
+.primaryAction:hover {
+  transform: translateY(-1px);
+}
+
+.primaryAction:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+}
+
+.secondaryAction {
+  background: transparent;
+  color: var(--text-main);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+}
+
+.stateBox,
+.successBox {
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.02);
+  padding: 1rem;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.stateBox h2,
+.successBox h2 {
+  font-size: 1.25rem;
+}
+
+.stateBox p,
+.successBox p {
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.hintList {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 0.2rem;
+}
+
+.feedback {
+  margin-top: 0.8rem;
+  color: #ffc6c6;
+}
+
+.spinner {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  border-top-color: var(--primary);
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 880px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .panel {
+    border-radius: 18px;
+    padding: 1rem;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -6,18 +6,18 @@
 .wrapper {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: var(--spacing-l);
+  gap: clamp(1.2rem, 4vw, var(--spacing-l));
   align-items: center;
 }
 
 .title {
-  font-size: 3rem;
+  font-size: clamp(2rem, 5vw, 3rem);
   margin-bottom: 1.5rem;
 }
 
 .desc {
   color: var(--text-muted);
-  margin-bottom: 3rem;
+  margin-bottom: clamp(1.25rem, 3vw, 3rem);
   font-size: 1.1rem;
   line-height: 1.6;
 }
@@ -48,11 +48,11 @@
 
 .form {
   background: var(--bg-dark);
-  padding: var(--spacing-l);
+  padding: clamp(1rem, 3vw, var(--spacing-l));
   border-radius: 20px;
   border: 1px solid var(--glass-border);
   display: grid;
-  gap: 1.5rem;
+  gap: clamp(0.85rem, 2vw, 1.5rem);
 }
 
 .inputGroup input,
@@ -60,7 +60,7 @@
   width: 100%;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid var(--glass-border);
-  padding: 1rem;
+  padding: clamp(0.72rem, 2vw, 1rem);
   border-radius: 12px;
   color: var(--text-main);
   font-family: inherit;
@@ -93,5 +93,27 @@
 @media (max-width: 992px) {
   .wrapper {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .contact {
+    padding: 3rem 0;
+  }
+
+  .desc {
+    font-size: 1rem;
+  }
+
+  .infoItems {
+    gap: 1rem;
+  }
+
+  .value {
+    font-size: 1rem;
+  }
+
+  .submitBtn {
+    padding: 0.95rem;
   }
 }

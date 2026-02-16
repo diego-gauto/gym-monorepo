@@ -7,6 +7,7 @@ import { BillingModule } from './modules/billing/billing.module';
 import { AccessModule } from './modules/access/access.module';
 import { UsersModule } from './modules/users/users.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { AdminModule } from './modules/admin/admin.module';
 import { purgeInvalidUsersBeforeSync } from './database-preflight';
 
 @Module({
@@ -47,6 +48,7 @@ import { purgeInvalidUsersBeforeSync } from './database-preflight';
     AccessModule,
     UsersModule,
     AuthModule,
+    AdminModule,
   ],
 })
 export class AppModule {}

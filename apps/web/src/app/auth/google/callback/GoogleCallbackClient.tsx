@@ -38,12 +38,14 @@ export default function GoogleCallbackClient() {
       try {
         const redirectUri = `${window.location.origin}/auth/google/callback`;
         const response = await loginWithGoogleCode(code, redirectUri);
-        const { origin, planId } = getGoogleCallbackRedirectTarget();
+        const { origin, planId, nextPath } = getGoogleCallbackRedirectTarget();
 
         saveAuthSession(response.access_token, response.user.email, response.user.role, origin);
 
         if (!cancelled) {
-          if (origin === "elegir_plan" && planId) {
+          if (nextPath) {
+            router.replace(nextPath);
+          } else if (origin === "elegir_plan" && planId) {
             router.replace(buildCheckoutUrl(planId));
           } else {
             router.replace("/");
@@ -53,10 +55,11 @@ export default function GoogleCallbackClient() {
         if (!cancelled) {
           const text = error instanceof Error ? error.message : "No se pudo iniciar sesión con Google.";
           setMessage(text);
-          const { origin, planId } = getGoogleCallbackRedirectTarget();
+          const { origin, planId, nextPath } = getGoogleCallbackRedirectTarget();
           if (text.toLowerCase().includes("registrate primero")) {
             const params = new URLSearchParams({ origin, googleNotRegistered: "1" });
             if (planId) params.set("plan", planId);
+            if (nextPath) params.set("next", nextPath);
             router.replace(`/register?${params.toString()}`);
             return;
           }

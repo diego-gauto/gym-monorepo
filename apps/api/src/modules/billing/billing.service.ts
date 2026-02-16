@@ -43,9 +43,39 @@ export class BillingService implements OnModuleInit {
     if (count > 0) return;
 
     await this.planRepository.save([
-      this.planRepository.create({ id: PlanType.MONTHLY, name: 'Mensual', price: 15000, currency: CurrencyCode.ARS, isActive: true }),
-      this.planRepository.create({ id: PlanType.QUARTERLY, name: 'Trimestral', price: 36000, currency: CurrencyCode.ARS, isActive: true }),
-      this.planRepository.create({ id: PlanType.YEARLY, name: 'Anual', price: 120000, currency: CurrencyCode.ARS, isActive: true }),
+      this.planRepository.create({
+        id: PlanType.MONTHLY,
+        name: 'Mensual',
+        description: 'Ideal para empezar tu transformación',
+        price: 15000,
+        currency: CurrencyCode.ARS,
+        features: ['Acceso completo al gimnasio', 'Uso de equipamiento premium'],
+        highlight: false,
+        badge: null,
+        isActive: true,
+      }),
+      this.planRepository.create({
+        id: PlanType.QUARTERLY,
+        name: 'Trimestral',
+        description: 'La mejor relación precio-calidad',
+        price: 36000,
+        currency: CurrencyCode.ARS,
+        features: ['Todo lo del plan mensual', 'Acceso a clases grupales'],
+        highlight: true,
+        badge: 'Más Popular',
+        isActive: true,
+      }),
+      this.planRepository.create({
+        id: PlanType.YEARLY,
+        name: 'Anual',
+        description: 'Máximo compromiso, máximos beneficios',
+        price: 120000,
+        currency: CurrencyCode.ARS,
+        features: ['Todo lo del plan trimestral', 'Seguimiento nutricional básico'],
+        highlight: false,
+        badge: null,
+        isActive: true,
+      }),
     ]);
   }
 

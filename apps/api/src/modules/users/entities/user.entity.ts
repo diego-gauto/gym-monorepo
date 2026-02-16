@@ -28,6 +28,9 @@ export class User implements IUser {
   @Column({ type: 'varchar', nullable: true })
   phone?: string | null;
 
+  @Column({ name: 'avatar_url', type: 'text', nullable: true })
+  avatarUrl?: string | null;
+
   @OneToOne(() => UserAuth, (auth: UserAuth) => auth.user, { cascade: true, eager: true })
   auth?: UserAuth;
 

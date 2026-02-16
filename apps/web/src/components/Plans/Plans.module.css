@@ -1,12 +1,12 @@
 .plans {
-  padding: 150px 0 var(--spacing-l);
+  padding: clamp(5.5rem, 10vw, 9.4rem) 0 var(--spacing-l);
   background-color: var(--bg-dark);
   scroll-margin-top: 140px;
 }
 
 .sectionTitle {
   text-align: center;
-  font-size: 2.5rem;
+  font-size: clamp(2rem, 4.2vw, 2.5rem);
   margin-bottom: var(--spacing-l);
 }
 
@@ -17,14 +17,20 @@
   align-items: stretch;
 }
 
-@media (max-width: 992px) {
+@media (max-width: 1120px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
   .grid {
     grid-template-columns: 1fr;
   }
 }
 
 .card {
-  padding: var(--spacing-l);
+  padding: clamp(1.3rem, 3.8vw, var(--spacing-l));
   background: var(--bg-surface);
   border-radius: 20px;
   display: grid;
@@ -90,7 +96,7 @@
 }
 
 .planName {
-  font-size: 2rem;
+  font-size: clamp(1.6rem, 3.8vw, 2rem);
   margin-bottom: 0.5rem;
 }
 
@@ -117,7 +123,7 @@
 }
 
 .amount {
-  font-size: 3.5rem;
+  font-size: clamp(2.2rem, 7.8vw, 3.5rem);
   font-weight: 700;
   font-family: "Space Grotesk", sans-serif;
   color: var(--primary);
@@ -184,7 +190,7 @@
   box-shadow: 0 8px 20px rgba(191, 255, 0, 0.06);
 }
 
-@media (max-width: 992px) {
+@media (max-width: 1120px) {
   .highlighted {
     transform: none;
   }
@@ -249,4 +255,51 @@
 .modalButtonSecondary {
   background: transparent;
   color: var(--primary);
+}
+
+@media (max-width: 640px) {
+  .plans {
+    padding-top: 5rem;
+    scroll-margin-top: 92px;
+  }
+
+  .sectionTitle {
+    margin-bottom: 1.6rem;
+  }
+
+  .grid {
+    gap: 1rem;
+  }
+
+  .card {
+    border-radius: 16px;
+  }
+
+  .planHeader {
+    margin-bottom: 1rem;
+    min-height: 0;
+  }
+
+  .planDescription {
+    min-height: 0;
+    font-size: 0.88rem;
+  }
+
+  .features {
+    padding-bottom: 1.25rem;
+  }
+
+  .features li {
+    font-size: 0.9rem;
+    padding: 0.5rem 0;
+  }
+
+  .ctaSecondary {
+    padding: 0.95rem;
+    font-size: 0.82rem;
+  }
+
+  .modal {
+    padding: 1rem;
+  }
 }

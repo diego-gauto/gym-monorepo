@@ -77,3 +77,9 @@ button {
     --header-height: 60px;
   }
 }
+
+@media (max-width: 430px) {
+  .container {
+    padding: 0 0.75rem;
+  }
+}

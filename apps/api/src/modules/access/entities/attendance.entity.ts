@@ -27,4 +27,10 @@ export class Attendance implements IAttendance {
 
   @Column({ name: 'device_id', nullable: true })
   deviceId?: string;
+
+  @Column({ name: 'activity_slug', nullable: true })
+  activitySlug?: string;
+
+  @Column({ name: 'gym_location', nullable: true })
+  gymLocation?: string;
 }

@@ -36,6 +36,7 @@ export interface IUser {
   lastName: string;
   email: string;
   phone?: string | null;
+  avatarUrl?: string | null;
   auth?: IUserAuth;
   status: MembershipStatus;
   role: UserRole;
@@ -85,8 +86,12 @@ export interface ISubscription {
 export interface IPlan {
   id: PlanType;
   name: string;
+  description: string;
   price: number;
   currency: CurrencyCode;
+  features: string[];
+  highlight: boolean;
+  badge?: string | null;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -125,6 +130,8 @@ export interface IAttendance {
   checkInAt: Date;
   checkOutAt?: Date;
   deviceId?: string;
+  activitySlug?: string;
+  gymLocation?: string;
 }
 
 export interface ISubscriptionChangeRequest {

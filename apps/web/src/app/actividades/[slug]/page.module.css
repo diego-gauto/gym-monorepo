@@ -1,10 +1,10 @@
 .page {
-  padding-top: var(--header-height);
+  padding-top: calc(var(--header-height) + 0.9rem);
 }
 
 .hero {
   position: relative;
-  min-height: 48vh;
+  min-height: clamp(280px, 46vh, 520px);
   background-size: cover;
   background-position: center;
   display: flex;
@@ -20,7 +20,7 @@
 .heroContent {
   position: relative;
   z-index: 1;
-  padding-bottom: var(--spacing-l);
+  padding-bottom: clamp(1.2rem, 4vw, var(--spacing-l));
 }
 
 .heroTitle {
@@ -31,21 +31,34 @@
 .heroDescription {
   max-width: 760px;
   color: var(--text-muted);
+  line-height: 1.5;
 }
 
 .content {
-  padding-top: var(--spacing-l);
-  padding-bottom: var(--spacing-l);
+  padding-top: clamp(1.8rem, 4vw, var(--spacing-l));
+  padding-bottom: clamp(2.2rem, 5vw, var(--spacing-l));
+}
+
+.topGrid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: var(--spacing-m);
 }
 
 .block {
-  margin-bottom: var(--spacing-m);
+  border: 1px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 18px;
+  padding: clamp(0.95rem, 2vw, 1.15rem) clamp(1rem, 2.4vw, 1.2rem);
+  height: 100%;
 }
 
 .block h2,
 .metaCard h3 {
   color: var(--primary);
   margin-bottom: 0.75rem;
+  font-size: clamp(1.05rem, 2vw, 1.25rem);
 }
 
 .block ul,
@@ -61,6 +74,7 @@
 .metaCard p {
   color: var(--text-muted);
   margin-bottom: 0.45rem;
+  line-height: 1.5;
 }
 
 .block li::before,
@@ -80,10 +94,37 @@
   border: 1px solid var(--glass-border);
   background: rgba(255, 255, 255, 0.03);
   border-radius: 18px;
-  padding: 1rem 1.2rem;
+  padding: clamp(0.95rem, 2vw, 1.15rem) clamp(1rem, 2.4vw, 1.2rem);
+  height: 100%;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1080px) {
+  .topGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .metaGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .page {
+    padding-top: calc(var(--header-height) + 0.5rem);
+  }
+
+  .hero {
+    min-height: 260px;
+  }
+
+  .heroContent {
+    padding-bottom: 1rem;
+  }
+
+  .topGrid {
+    grid-template-columns: 1fr;
+  }
+
   .metaGrid {
     grid-template-columns: 1fr;
   }

@@ -1,7 +1,17 @@
 import React from 'react';
 import styles from './Contact.module.css';
 
-export default function Contact() {
+type ContactProps = {
+  address?: string;
+  email?: string;
+  phone?: string;
+};
+
+export default function Contact({
+  address = 'Av. del Libertador 1234, CABA',
+  email = 'info@gymmaster.com.ar',
+  phone = '+54 11 4567-8900',
+}: ContactProps) {
   return (
     <section id="contacto" className={styles.contact}>
       <div className="container">
@@ -13,15 +23,15 @@ export default function Contact() {
             <div className={styles.infoItems}>
               <div className={styles.infoItem}>
                 <span className={styles.label}>Ubicación</span>
-                <span className={styles.value}>Av. del Libertador 1234, CABA</span>
+                <span className={styles.value}>{address}</span>
               </div>
               <div className={styles.infoItem}>
                 <span className={styles.label}>Email</span>
-                <span className={styles.value}>info@gymmaster.com.ar</span>
+                <span className={styles.value}>{email}</span>
               </div>
               <div className={styles.infoItem}>
                 <span className={styles.label}>Teléfono</span>
-                <span className={styles.value}>+54 11 4567-8900</span>
+                <span className={styles.value}>{phone}</span>
               </div>
             </div>
           </div>
