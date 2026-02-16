@@ -99,6 +99,114 @@ const DEFAULT_BENEFITS: Array<Omit<BenefitItem, 'id'>> = [
   { title: 'Resultados Medibles', description: 'Indicadores reales de progreso.', iconKey: 'BOLT', active: true },
 ];
 
+const DEFAULT_TRAINERS: TrainerItem[] = [
+  { id: 'tr-juan-perez', name: 'Juan Pérez', bio: 'Entrenador de fuerza y rendimiento.', avatarUrl: '/logo.png', active: true },
+  { id: 'tr-maria-garcia', name: 'María García', bio: 'Especialista en hipertrofia y técnica.', avatarUrl: '/logo.png', active: true },
+  { id: 'tr-carlos-lopez', name: 'Carlos López', bio: 'Coach de alto rendimiento funcional.', avatarUrl: '/logo.png', active: true },
+  { id: 'tr-lucia-fernandez', name: 'Lucía Fernández', bio: 'Preparadora física y movilidad.', avatarUrl: '/logo.png', active: true },
+  { id: 'tr-sofia-ruiz', name: 'Sofía Ruiz', bio: 'Instructora de yoga y respiración.', avatarUrl: '/logo.png', active: true },
+  { id: 'tr-valentina-mora', name: 'Valentina Mora', bio: 'Profesora de yoga terapéutico.', avatarUrl: '/logo.png', active: true },
+  { id: 'tr-nicolas-rojas', name: 'Nicolás Rojas', bio: 'Coach de boxeo técnico.', avatarUrl: '/logo.png', active: true },
+  { id: 'tr-bruno-diaz', name: 'Bruno Díaz', bio: 'Entrenador de combate y resistencia.', avatarUrl: '/logo.png', active: true },
+  { id: 'tr-micaela-soto', name: 'Micaela Soto', bio: 'Instructora de spinning y cardio.', avatarUrl: '/logo.png', active: true },
+  { id: 'tr-ramiro-paz', name: 'Ramiro Paz', bio: 'Coach de potencia aeróbica.', avatarUrl: '/logo.png', active: true },
+  { id: 'tr-camila-torres', name: 'Camila Torres', bio: 'Entrenadora funcional y core.', avatarUrl: '/logo.png', active: true },
+  { id: 'tr-leandro-nunez', name: 'Leandro Núñez', bio: 'Especialista en acondicionamiento.', avatarUrl: '/logo.png', active: true },
+];
+
+const DEFAULT_ACTIVITIES: ActivityItem[] = [
+  {
+    id: 'act-musculacion',
+    slug: 'musculacion',
+    name: 'Musculación',
+    shortDescription: 'Fuerza y masa muscular',
+    description: 'Entrenamiento de fuerza guiado para ganar músculo, mejorar postura y construir una base sólida.',
+    cardImage: '/musculacion.png',
+    level: 'Todos los niveles',
+    duration: '45 a 60 minutos',
+    benefits: ['Aumento de masa muscular', 'Mejora de densidad ósea', 'Metabolismo activo'],
+    schedule: ['Lunes a Viernes · 06:00 a 23:00', 'Sábados · 08:00 a 20:00'],
+    successCriteria: ['Completar rutina semanal', 'Mejorar técnica de base', 'Incrementar cargas de forma progresiva'],
+    trainerIds: ['tr-juan-perez', 'tr-maria-garcia'],
+    active: true,
+  },
+  {
+    id: 'act-crossfit',
+    slug: 'crossfit',
+    name: 'Crossfit',
+    shortDescription: 'Rendimiento integral',
+    description: 'WODs dinámicos para mejorar fuerza, coordinación y resistencia en un entorno de comunidad.',
+    cardImage: '/crossfit.png',
+    level: 'Intermedio a avanzado',
+    duration: '50 minutos',
+    benefits: ['Capacidad aeróbica', 'Fuerza funcional', 'Motivación grupal'],
+    schedule: ['Lunes a Viernes · Clases cada 1 hora desde las 07:00', 'Sábados · 09:00, 10:00 y 11:00'],
+    successCriteria: ['Mejorar tiempos de WOD', 'Mantener técnica bajo fatiga', 'Aumentar constancia mensual'],
+    trainerIds: ['tr-carlos-lopez', 'tr-lucia-fernandez'],
+    active: true,
+  },
+  {
+    id: 'act-yoga',
+    slug: 'yoga',
+    name: 'Yoga',
+    shortDescription: 'Cuerpo y mente',
+    description: 'Sesiones enfocadas en movilidad, respiración y equilibrio para reducir estrés y mejorar bienestar.',
+    cardImage: '/yoga.png',
+    level: 'Inicial a intermedio',
+    duration: '60 minutos',
+    benefits: ['Mayor movilidad', 'Menor estrés', 'Mejor respiración'],
+    schedule: ['Lunes, Miércoles y Viernes · 08:00 y 19:00', 'Martes y Jueves · 20:00'],
+    successCriteria: ['Lograr secuencias fluidas', 'Aumentar flexibilidad', 'Mejorar control postural'],
+    trainerIds: ['tr-sofia-ruiz', 'tr-valentina-mora'],
+    active: true,
+  },
+  {
+    id: 'act-boxing',
+    slug: 'boxing',
+    name: 'Boxeo',
+    shortDescription: 'Técnica y explosión',
+    description: 'Entrenamiento técnico y físico que combina coordinación, potencia y trabajo cardiovascular.',
+    cardImage: '/boxing.png',
+    level: 'Todos los niveles',
+    duration: '55 minutos',
+    benefits: ['Mejor coordinación', 'Potencia de golpe', 'Alta quema calórica'],
+    schedule: ['Lunes a Viernes · 18:00 y 20:00', 'Sábados · 10:30'],
+    successCriteria: ['Dominar guardia y desplazamiento', 'Mejorar resistencia por rounds', 'Perfeccionar combinaciones'],
+    trainerIds: ['tr-nicolas-rojas', 'tr-bruno-diaz'],
+    active: true,
+  },
+  {
+    id: 'act-spinning',
+    slug: 'spinning',
+    name: 'Spinning',
+    shortDescription: 'Cardio intensivo',
+    description: 'Clases de bici indoor con música y cambios de ritmo para maximizar resistencia y energía.',
+    cardImage: '/spinning.png',
+    level: 'Inicial a avanzado',
+    duration: '45 minutos',
+    benefits: ['Resistencia cardiovascular', 'Trabajo de piernas', 'Alto gasto energético'],
+    schedule: ['Lunes a Viernes · 07:00, 13:00 y 19:00', 'Sábados · 09:00'],
+    successCriteria: ['Sostener cadencia objetivo', 'Controlar zonas de esfuerzo', 'Aumentar rendimiento semanal'],
+    trainerIds: ['tr-micaela-soto', 'tr-ramiro-paz'],
+    active: true,
+  },
+  {
+    id: 'act-funcional',
+    slug: 'funcional',
+    name: 'Funcional',
+    shortDescription: 'Entrenamiento funcional',
+    description: 'Circuitos integrales que mejoran movimientos del día a día con foco en fuerza, agilidad y estabilidad.',
+    cardImage: '/funcional.svg',
+    level: 'Todos los niveles',
+    duration: '50 minutos',
+    benefits: ['Mejor coordinación global', 'Mayor estabilidad de core', 'Movilidad aplicada'],
+    schedule: ['Lunes a Viernes · 08:00, 12:00 y 19:30', 'Sábados · 11:00'],
+    successCriteria: ['Completar circuitos con buena técnica', 'Progresar en repeticiones', 'Mejorar agilidad y control'],
+    trainerIds: ['tr-camila-torres', 'tr-leandro-nunez'],
+    active: true,
+  },
+];
+
 const DEFAULT_PLANS: PlanItem[] = [
   {
     id: PlanType.MONTHLY,
@@ -389,25 +497,82 @@ export class AdminContentService {
     );
   }
 
-  private async ensurePlanDefaults() {
-    const count = await this.planRepository.count();
+  private async ensureTrainersDefaults() {
+    await this.ensureLegacyMigration();
+    const count = await this.trainerRepository.count();
     if (count > 0) return;
 
-    await this.planRepository.save(
-      DEFAULT_PLANS.map((plan) =>
-        this.planRepository.create({
-          id: plan.id as PlanType,
-          name: plan.name,
-          description: plan.description,
-          price: plan.price,
-          currency: plan.currency,
-          features: plan.features,
-          highlight: plan.highlight,
-          badge: plan.badge ?? null,
-          isActive: plan.active,
+    await this.trainerRepository.save(
+      DEFAULT_TRAINERS.map((trainer) =>
+        this.trainerRepository.create({
+          id: trainer.id,
+          name: trainer.name,
+          bio: trainer.bio,
+          avatarUrl: trainer.avatarUrl,
+          active: trainer.active,
         }),
       ),
     );
+  }
+
+  private async ensureActivitiesDefaults() {
+    await this.ensureLegacyMigration();
+    const count = await this.activityRepository.count();
+    if (count > 0) return;
+
+    await this.ensureTrainersDefaults();
+    const trainers = await this.trainerRepository.find();
+    const trainerMap = new Map(trainers.map((trainer) => [trainer.id, trainer]));
+
+    await this.activityRepository.save(
+      DEFAULT_ACTIVITIES.map((activity) =>
+        this.activityRepository.create({
+          id: activity.id,
+          slug: activity.slug,
+          name: activity.name,
+          shortDescription: activity.shortDescription,
+          description: activity.description,
+          cardImage: activity.cardImage,
+          level: activity.level,
+          duration: activity.duration,
+          benefits: activity.benefits,
+          schedule: activity.schedule,
+          successCriteria: activity.successCriteria,
+          active: activity.active,
+          trainers: activity.trainerIds
+            .map((trainerId) => trainerMap.get(trainerId))
+            .filter((trainer): trainer is Trainer => Boolean(trainer)),
+        }),
+      ),
+    );
+  }
+
+  private async ensurePlanDefaults() {
+    await this.ensureLegacyMigration();
+    const currentPlans = await this.planRepository.find();
+    const byId = new Map(currentPlans.map((plan) => [plan.id, plan]));
+    const toSave: Plan[] = [];
+
+    for (const defaultPlan of DEFAULT_PLANS) {
+      const planId = defaultPlan.id as PlanType;
+      const existing = byId.get(planId);
+      const row = existing ?? this.planRepository.create({ id: planId });
+
+      if (!existing || !row.name) row.name = defaultPlan.name;
+      if (!existing || !row.price) row.price = defaultPlan.price;
+      if (!existing || !row.currency) row.currency = defaultPlan.currency;
+      if (!row.description || row.description.trim().length === 0) row.description = defaultPlan.description;
+      if (!Array.isArray(row.features) || row.features.length === 0) row.features = [...defaultPlan.features];
+      if (row.badge == null && defaultPlan.badge) row.badge = defaultPlan.badge;
+      if (!existing) row.highlight = defaultPlan.highlight;
+      if (!existing) row.isActive = defaultPlan.active;
+
+      toSave.push(row);
+    }
+
+    if (toSave.length > 0) {
+      await this.planRepository.save(toSave);
+    }
   }
 
   async getSiteSettings() {
@@ -423,7 +588,7 @@ export class AdminContentService {
   }
 
   async getTrainers() {
-    await this.ensureLegacyMigration();
+    await this.ensureTrainersDefaults();
     const rows = await this.trainerRepository.find({ order: { createdAt: 'DESC' } });
     return rows.map((row) => this.toTrainerItem(row));
   }
@@ -469,7 +634,7 @@ export class AdminContentService {
   }
 
   async getActivities() {
-    await this.ensureLegacyMigration();
+    await this.ensureActivitiesDefaults();
     const rows = await this.activityRepository.find({ order: { createdAt: 'DESC' } });
     return rows.map((row) => this.toActivityItem(row));
   }
