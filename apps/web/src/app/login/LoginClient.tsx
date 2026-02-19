@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import styles from "../auth/page.module.css";
+import GoogleMark from "../../components/GoogleMark";
 import {
   buildCheckoutUrl,
   loginWithCredentials,
@@ -74,8 +75,9 @@ export default function LoginClient({ initialPlan, initialOrigin, initialNext = 
       } else {
         router.push("/");
       }
-    } catch {
-      setMessage("Credenciales incorrectas. Revisá tu email y contraseña.");
+    } catch (error) {
+      const text = error instanceof Error ? error.message : "Credenciales incorrectas. Revisá tu email y contraseña.";
+      setMessage(text);
     }
   };
 
@@ -109,20 +111,13 @@ export default function LoginClient({ initialPlan, initialOrigin, initialNext = 
           <header>
             <p className={styles.sectionTag}>Acceso seguro</p>
             <h2>Iniciar sesión</h2>
-            <p>Entrá para continuar.</p>
           </header>
 
-          <div className={styles.switchRow}>
-            <Link href="/login" className={`${styles.switchItem} ${styles.switchItemActive}`}>
-              Ingresar
+          <p className={styles.microCopy}>
+            ¿No tenés cuenta?{" "}
+            <Link href={registerHref} className={styles.microLink}>
+              Registrate
             </Link>
-            <Link href={registerHref} className={styles.switchItem}>
-              Registrarme
-            </Link>
-          </div>
-
-          <p className={styles.switchHelp}>
-            <Link href={registerHref} className={styles.inlineLink}>No tengo cuenta / Registrarme</Link>
           </p>
 
           <form className={styles.form} onSubmit={handleSubmit(onSubmit)} noValidate>
@@ -131,6 +126,7 @@ export default function LoginClient({ initialPlan, initialOrigin, initialNext = 
               id="email"
               type="email"
               placeholder="tu@email.com"
+              autoComplete="email"
               {...register("email", {
                 required: "El email es obligatorio",
                 pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: "Ingresá un email válido" },
@@ -143,25 +139,33 @@ export default function LoginClient({ initialPlan, initialOrigin, initialNext = 
               id="password"
               type="password"
               placeholder="********"
+              autoComplete="current-password"
               {...register("password", {
                 required: "La contraseña es obligatoria",
               })}
             />
             {errors.password && <p className={styles.fieldError}>{errors.password.message}</p>}
 
-            <div className={styles.actionsRow}>
-              <Link href="/recover-password" className={styles.hintLink}>Recuperar contraseña</Link>
-              <button type="submit" className={styles.submit} disabled={!isValid || isSubmitting}>
-                {isSubmitting ? "Ingresando..." : "Ingresar"}
-              </button>
+            <div className={styles.passwordAssist}>
+              <Link href="/recover-password" className={styles.hintLink}>¿Olvidaste tu contraseña?</Link>
             </div>
+            <button type="submit" className={`${styles.submit} ${styles.submitFull}`} disabled={!isValid || isSubmitting}>
+              {isSubmitting ? "Ingresando..." : "Ingresar"}
+            </button>
           </form>
 
           {message && <p className={styles.formMessage}>{message}</p>}
 
           <div className={styles.separator}><span>o</span></div>
           <button type="button" className={styles.googleButton} onClick={onGoogleSubmit} disabled={isGoogleSubmitting}>
-            {isGoogleSubmitting ? "Conectando con Google..." : "Continuar con Google"}
+            {isGoogleSubmitting ? (
+              "Conectando con Google..."
+            ) : (
+              <span className={styles.googleButtonContent}>
+                <GoogleMark className={styles.googleMark} />
+                <span>Continuar con Google</span>
+              </span>
+            )}
           </button>
         </div>
       </section>

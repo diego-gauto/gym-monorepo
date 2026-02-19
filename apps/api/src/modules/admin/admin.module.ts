@@ -12,6 +12,7 @@ import { Benefit } from './entities/benefit.entity';
 import { AdminContent } from './entities/admin-content.entity';
 import { GymSiteSettings } from './entities/gym-site-settings.entity';
 import { Trainer } from './entities/trainer.entity';
+import { GymBranch } from './entities/gym-branch.entity';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { Trainer } from './entities/trainer.entity';
       Invoice,
       Plan,
       GymSiteSettings,
+      GymBranch,
       Trainer,
       Activity,
       Benefit,

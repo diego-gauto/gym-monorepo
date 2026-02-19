@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
@@ -8,6 +8,7 @@ import { AuthProvider, MembershipStatus, UserRole } from '@gym-admin/shared';
 import { User } from '../users/entities/user.entity';
 import { UserAuth } from '../users/entities/user-auth.entity';
 import { AuthService } from './auth.service';
+import { AuthEmailService } from './auth-email.service';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -40,6 +41,10 @@ describe('AuthService', () => {
   const mockJwtService = {
     sign: jest.fn().mockReturnValue('fake-jwt-token'),
   };
+  const mockAuthEmailService = {
+    sendVerificationEmail: jest.fn(),
+    sendPasswordResetEmail: jest.fn(),
+  };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -67,6 +72,10 @@ describe('AuthService', () => {
           provide: ConfigService,
           useValue: mockConfigService,
         },
+        {
+          provide: AuthEmailService,
+          useValue: mockAuthEmailService,
+        },
       ],
     }).compile();
 
@@ -74,7 +83,7 @@ describe('AuthService', () => {
   });
 
   describe('register', () => {
-    it('creates a local active user, hashes password and returns session token', async () => {
+    it('creates a local user pending verification and returns a confirmation message', async () => {
       mockUserRepository.findOne.mockResolvedValue(null);
       mockUserRepository.create.mockImplementation((payload) => payload);
       mockUserAuthRepository.create.mockImplementation((payload) => payload);
@@ -97,16 +106,21 @@ describe('AuthService', () => {
       const createdPayload = mockUserRepository.create.mock.calls[0][0];
       expect(createdPayload.status).toBe(MembershipStatus.ACTIVE);
       expect(createdPayload.auth.authProvider).toBe(AuthProvider.LOCAL);
-      expect(createdPayload.auth.emailVerifiedAt).toBeInstanceOf(Date);
+      expect(createdPayload.auth.emailVerifiedAt).toBeNull();
+      expect(createdPayload.auth.emailVerificationTokenHash).toEqual(expect.any(String));
+      expect(createdPayload.auth.emailVerificationTokenExpiresAt).toBeInstanceOf(Date);
       expect(createdPayload.auth.password).not.toBe('Password123');
       expect(await bcrypt.compare('Password123', createdPayload.auth.password)).toBe(true);
+      expect(mockAuthEmailService.sendVerificationEmail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          email: 'juan@email.com',
+          firstName: 'Juan',
+          verificationToken: expect.any(String),
+        }),
+      );
 
       expect(result).toEqual({
-        access_token: 'fake-jwt-token',
-        user: {
-          email: 'juan@email.com',
-          role: UserRole.USER,
-        },
+        message: 'Te enviamos un email para activar tu cuenta.',
       });
     });
 
@@ -181,6 +195,26 @@ describe('AuthService', () => {
 
       const result = await service.validateUser('user@email.com', 'WrongPassword');
       expect(result).toBeNull();
+    });
+
+    it('rejects local login when email is not verified yet', async () => {
+      const passwordHash = await bcrypt.hash('Password123', 10);
+      qb.getOne.mockResolvedValue({
+        password: passwordHash,
+        authProvider: AuthProvider.LOCAL,
+        emailVerifiedAt: null,
+        user: {
+          id: 1,
+          uuid: 'user-uuid',
+          email: 'user@email.com',
+          role: UserRole.USER,
+          status: MembershipStatus.ACTIVE,
+        },
+      });
+
+      await expect(service.validateUser('user@email.com', 'Password123')).rejects.toThrow(
+        new ForbiddenException('Debes verificar tu email antes de iniciar sesión.'),
+      );
     });
   });
 
@@ -354,6 +388,72 @@ describe('AuthService', () => {
       );
 
       fetchMock.mockRestore();
+    });
+  });
+
+  describe('password recovery', () => {
+    it('stores reset token hash and sends reset email for local accounts', async () => {
+      const authEntity = {
+        id: 12,
+        userId: 5,
+        authProvider: AuthProvider.LOCAL,
+        emailVerifiedAt: new Date(),
+      };
+      mockUserRepository.findOne.mockResolvedValue({
+        id: 5,
+        email: 'recover@test.com',
+        firstName: 'Recover',
+        auth: authEntity,
+      });
+      mockUserAuthRepository.save.mockImplementation(async (payload) => payload);
+
+      const response = await service.forgotPassword('recover@test.com');
+
+      expect(response).toEqual({ message: 'Si el email existe, te enviamos instrucciones para recuperar tu contraseña.' });
+      expect(mockUserAuthRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          passwordResetTokenHash: expect.any(String),
+          passwordResetTokenExpiresAt: expect.any(Date),
+        }),
+      );
+      expect(mockAuthEmailService.sendPasswordResetEmail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          email: 'recover@test.com',
+          firstName: 'Recover',
+          resetToken: expect.any(String),
+        }),
+      );
+    });
+
+    it('updates password when reset token is valid', async () => {
+      const realToken = 'reset-token-raw';
+      const tokenHash = (service as any).hashToken(realToken);
+      const existingPasswordHash = await bcrypt.hash('OldPassword1', 10);
+      const authEntity = {
+        id: 44,
+        userId: 2,
+        authProvider: AuthProvider.LOCAL,
+        password: existingPasswordHash,
+        passwordResetTokenHash: tokenHash,
+        passwordResetTokenExpiresAt: new Date(Date.now() + 10 * 60 * 1000),
+      };
+      mockUserAuthRepository.findOne.mockResolvedValue(authEntity);
+      mockUserAuthRepository.save.mockImplementation(async (payload) => payload);
+
+      const response = await service.resetPassword({
+        token: realToken,
+        newPassword: 'NewPassword1',
+        confirmPassword: 'NewPassword1',
+      });
+
+      expect(response).toEqual({ message: 'Contraseña actualizada correctamente.' });
+      expect(mockUserAuthRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          password: expect.any(String),
+          passwordResetTokenHash: null,
+          passwordResetTokenExpiresAt: null,
+        }),
+      );
     });
   });
 });

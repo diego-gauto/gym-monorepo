@@ -4,11 +4,13 @@ import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { createHash } from 'crypto';
+import { createHash, randomBytes } from 'crypto';
 import { User } from '../users/entities/user.entity';
 import { UserAuth } from '../users/entities/user-auth.entity';
 import { RegisterDto } from './dto/register.dto';
 import { AuthProvider, MembershipStatus } from '@gym-admin/shared';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { AuthEmailService } from './auth-email.service';
 
 @Injectable()
 export class AuthService {
@@ -19,6 +21,7 @@ export class AuthService {
     private readonly userAuthRepository: Repository<UserAuth>,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly authEmailService: AuthEmailService,
   ) {}
 
   async validateUser(email: string, pass: string): Promise<any> {
@@ -34,6 +37,9 @@ export class AuthService {
     if (!auth || !auth.password || !auth.user) return null;
 
     if (await bcrypt.compare(pass, auth.password)) {
+      if (auth.authProvider === AuthProvider.LOCAL && !auth.emailVerifiedAt) {
+        throw new ForbiddenException('Debes verificar tu email antes de iniciar sesión.');
+      }
       return {
         id: auth.user.id,
         uuid: auth.user.uuid,
@@ -70,12 +76,22 @@ export class AuthService {
     return createHash('sha256').update(token).digest('hex');
   }
 
+  private createRawToken(): string {
+    return randomBytes(32).toString('hex');
+  }
+
+  private getTokenExpirationDate(configKey: string, fallbackMinutes: number): Date {
+    const configured = Number(this.configService.get<string>(configKey) ?? fallbackMinutes);
+    const minutes = Number.isFinite(configured) && configured > 0 ? configured : fallbackMinutes;
+    return new Date(Date.now() + minutes * 60 * 1000);
+  }
+
   async register(registerDto: RegisterDto): Promise<Record<string, unknown>> {
     const { email, firstName, lastName, phone, password, confirmPassword } = registerDto;
     const normalizedEmail = email.toLowerCase();
 
     if (password !== confirmPassword) {
-      throw new BadRequestException('Passwords do not match');
+      throw new BadRequestException('Las contraseñas no coinciden');
     }
 
     const existingUser = await this.userRepository.findOne({ where: [{ email: normalizedEmail }] });
@@ -85,6 +101,9 @@ export class AuthService {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
+    const verificationToken = this.createRawToken();
+    const verificationTokenHash = this.hashToken(verificationToken);
+    const verificationTokenExpiresAt = this.getTokenExpirationDate('EMAIL_VERIFICATION_TOKEN_TTL_MINUTES', 24 * 60);
 
     const user = this.userRepository.create({
       firstName,
@@ -95,15 +114,20 @@ export class AuthService {
       auth: this.userAuthRepository.create({
         password: hashedPassword,
         authProvider: AuthProvider.LOCAL,
-        emailVerifiedAt: new Date(),
-        emailVerificationTokenHash: null,
-        emailVerificationTokenExpiresAt: null,
+        emailVerifiedAt: null,
+        emailVerificationTokenHash: verificationTokenHash,
+        emailVerificationTokenExpiresAt: verificationTokenExpiresAt,
       }),
     });
 
-    const savedUser = await this.userRepository.save(user);
+    await this.userRepository.save(user);
+    await this.authEmailService.sendVerificationEmail({
+      email: normalizedEmail,
+      firstName,
+      verificationToken,
+    });
 
-    return this.login(savedUser);
+    return { message: 'Te enviamos un email para activar tu cuenta.' };
   }
 
   async verifyEmail(token: string) {
@@ -112,15 +136,14 @@ export class AuthService {
     const auth = await this.userAuthRepository.findOne({
       where: { emailVerificationTokenHash: tokenHash },
       relations: ['user'],
-      select: ['id', 'emailVerificationTokenExpiresAt'],
     });
 
     if (!auth || !auth.emailVerificationTokenExpiresAt) {
-      throw new BadRequestException('Invalid verification token');
+      throw new BadRequestException('Token de verificación inválido.');
     }
 
     if (auth.emailVerificationTokenExpiresAt < new Date()) {
-      throw new BadRequestException('Verification token expired');
+      throw new BadRequestException('El token de verificación expiró.');
     }
 
     await this.userAuthRepository.update(auth.id, {
@@ -133,11 +156,95 @@ export class AuthService {
       status: MembershipStatus.ACTIVE,
     });
 
-    return { message: 'Email verified successfully' };
+    return { message: 'Email verificado correctamente.' };
   }
 
-  async resendVerification(_email?: string) {
-    return { message: 'La verificación por email no está habilitada en este flujo.' };
+  async resendVerification(email?: string) {
+    const genericMessage = { message: 'Si el email existe, te enviamos un nuevo link de verificación.' };
+    if (!email) return genericMessage;
+
+    const normalizedEmail = email.toLowerCase();
+    const user = await this.userRepository.findOne({
+      where: { email: normalizedEmail },
+      relations: ['auth'],
+    });
+
+    if (!user?.auth || user.auth.authProvider !== AuthProvider.LOCAL || user.auth.emailVerifiedAt) {
+      return genericMessage;
+    }
+
+    const verificationToken = this.createRawToken();
+    user.auth.emailVerificationTokenHash = this.hashToken(verificationToken);
+    user.auth.emailVerificationTokenExpiresAt = this.getTokenExpirationDate('EMAIL_VERIFICATION_TOKEN_TTL_MINUTES', 24 * 60);
+    await this.userAuthRepository.save(user.auth);
+
+    await this.authEmailService.sendVerificationEmail({
+      email: user.email,
+      firstName: user.firstName,
+      verificationToken,
+    });
+
+    return genericMessage;
+  }
+
+  async forgotPassword(email: string) {
+    const genericMessage = { message: 'Si el email existe, te enviamos instrucciones para recuperar tu contraseña.' };
+    const normalizedEmail = email.toLowerCase();
+
+    const user = await this.userRepository.findOne({
+      where: { email: normalizedEmail },
+      relations: ['auth'],
+    });
+
+    if (!user?.auth || user.auth.authProvider !== AuthProvider.LOCAL || !user.auth.emailVerifiedAt) {
+      return genericMessage;
+    }
+
+    const resetToken = this.createRawToken();
+    user.auth.passwordResetTokenHash = this.hashToken(resetToken);
+    user.auth.passwordResetTokenExpiresAt = this.getTokenExpirationDate('PASSWORD_RESET_TOKEN_TTL_MINUTES', 30);
+    await this.userAuthRepository.save(user.auth);
+
+    await this.authEmailService.sendPasswordResetEmail({
+      email: user.email,
+      firstName: user.firstName,
+      resetToken,
+    });
+
+    return genericMessage;
+  }
+
+  async resetPassword(dto: ResetPasswordDto) {
+    const { token, newPassword, confirmPassword } = dto;
+
+    if (newPassword !== confirmPassword) {
+      throw new BadRequestException('Las contraseñas no coinciden');
+    }
+
+    if (!/^(?=.*[A-Za-z])(?=.*\d).+$/.test(newPassword)) {
+      throw new BadRequestException('La contraseña debe incluir al menos una letra y un número');
+    }
+
+    const tokenHash = this.hashToken(token);
+    const auth = await this.userAuthRepository.findOne({
+      where: { passwordResetTokenHash: tokenHash },
+      relations: ['user'],
+    });
+
+    if (!auth?.passwordResetTokenExpiresAt || auth.passwordResetTokenExpiresAt < new Date()) {
+      throw new BadRequestException('Token inválido o expirado.');
+    }
+
+    if (auth.authProvider !== AuthProvider.LOCAL) {
+      throw new BadRequestException('Solo las cuentas locales pueden restablecer contraseña.');
+    }
+
+    auth.password = await bcrypt.hash(newPassword, 10);
+    auth.passwordResetTokenHash = null;
+    auth.passwordResetTokenExpiresAt = null;
+    await this.userAuthRepository.save(auth);
+
+    return { message: 'Contraseña actualizada correctamente.' };
   }
 
   private async verifyGoogleToken(idToken: string) {

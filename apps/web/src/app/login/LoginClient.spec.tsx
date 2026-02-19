@@ -48,15 +48,16 @@ describe('LoginClient', () => {
   it('renders login form and register link', () => {
     render(<LoginClient initialPlan={null} initialOrigin={null} />);
     expect(screen.getByRole('heading', { name: 'Iniciar sesión' })).toBeInTheDocument();
-    const registerLinks = screen.getAllByRole('link', { name: 'No tengo cuenta / Registrarme' });
-    expect(registerLinks[0]).toHaveAttribute('href', '/register?origin=login_manual&plan=monthly');
+    expect(screen.getByRole('link', { name: 'Registrate' })).toHaveAttribute(
+      'href',
+      '/register?origin=login_manual&plan=monthly',
+    );
   });
 
   it('renders with plan omitted when resolvePlan returns null', () => {
     vi.mocked(authFlow.resolvePlan).mockReturnValue(null);
     render(<LoginClient initialPlan={null} initialOrigin={null} />);
-    const registerLinks = screen.getAllByRole('link', { name: 'No tengo cuenta / Registrarme' });
-    expect(registerLinks[0]).toHaveAttribute('href', '/register?origin=login_manual');
+    expect(screen.getByRole('link', { name: 'Registrate' })).toHaveAttribute('href', '/register?origin=login_manual');
   });
 
   it('shows inline validation errors for invalid/touched fields', async () => {

@@ -7,6 +7,8 @@ import { VerifyEmailDto } from './dto/verify-email.dto';
 import { ResendVerificationDto } from './dto/resend-verification.dto';
 import { GoogleAuthDto } from './dto/google-auth.dto';
 import { GoogleCodeAuthDto } from './dto/google-code-auth.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -27,6 +29,18 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async resendVerification(@Body() dto: ResendVerificationDto) {
     return this.authService.resendVerification(dto.email);
+  }
+
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(dto.email);
+  }
+
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto);
   }
 
   @UseGuards(LocalAuthGuard)

@@ -2,18 +2,17 @@
 
 import React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import styles from "../auth/page.module.css";
+import GoogleMark from "../../components/GoogleMark";
 import {
-  buildCheckoutUrl,
   persistOrigin,
   persistPlan,
   registerUser,
+  resendVerificationEmail,
   resolveOrigin,
   resolvePlan,
-  saveAuthSession,
 } from "../../lib/auth-flow";
 import { startGoogleOAuth } from "../../lib/google-oauth";
 
@@ -41,11 +40,13 @@ export default function RegisterClient({
   initialNext = null,
   initialGoogleNotRegistered = false,
 }: Props) {
-  const router = useRouter();
   const [message, setMessage] = useState<string | null>(
     initialGoogleNotRegistered ? "Tu cuenta de Google todavía no está registrada. Completá el alta primero." : null,
   );
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
+  const [resendMessage, setResendMessage] = useState<string | null>(null);
+  const [isResending, setIsResending] = useState(false);
 
   const {
     register,
@@ -101,18 +102,23 @@ export default function RegisterClient({
       return;
     }
 
-    try {
-      saveAuthSession(response.access_token, response.user.email, response.user.role, origin);
-    } catch {
-      // If local session persistence fails, continue with navigation after successful register.
-    }
+    setRegisteredEmail(values.email);
+    setMessage(response.message ?? "Te enviamos un email para activar tu cuenta.");
+    setResendMessage(null);
+  };
 
-    if (nextPath) {
-      router.push(nextPath);
-    } else if (origin === "elegir_plan" && planId) {
-      router.push(buildCheckoutUrl(planId));
-    } else {
-      router.push("/");
+  const onResendVerification = async () => {
+    if (!registeredEmail || isResending) return;
+    setResendMessage(null);
+    setIsResending(true);
+    try {
+      const response = await resendVerificationEmail(registeredEmail);
+      setResendMessage(response.message);
+    } catch (error) {
+      const text = error instanceof Error ? error.message : "No se pudo reenviar el email.";
+      setResendMessage(text);
+    } finally {
+      setIsResending(false);
     }
   };
 
@@ -146,54 +152,55 @@ export default function RegisterClient({
           <header>
             <p className={styles.sectionTag}>Alta presencial y online</p>
             <h2>Crear cuenta</h2>
-            <p>Completá tus datos para continuar.</p>
           </header>
-
-          <div className={styles.switchRow}>
-            <Link href={loginHref} className={styles.switchItem}>
-              Ingresar
+          <p className={styles.microCopy}>
+            ¿Ya tenés cuenta?{" "}
+            <Link href={loginHref} className={styles.microLink}>
+              Inicia sesión
             </Link>
-            <Link href="/register" className={`${styles.switchItem} ${styles.switchItemActive}`}>
-              Registrarme
-            </Link>
-          </div>
-
-          <p className={styles.switchHelp}>
-            <Link href={loginHref} className={styles.inlineLink}>Ya tengo cuenta / Ingresar</Link>
           </p>
 
           <form className={styles.form} onSubmit={handleSubmit(onSubmit)} noValidate>
-            <label htmlFor="firstName">Nombre</label>
-            <input
-              id="firstName"
-              type="text"
-              placeholder="Juan"
-              {...register("firstName", {
-                required: "El nombre es obligatorio",
-                maxLength: { value: 50, message: "El nombre no puede superar 50 caracteres" },
-                validate: (value) => value.trim().length > 0 || "El nombre es obligatorio",
-              })}
-            />
-            {errors.firstName && <p className={styles.fieldError}>{errors.firstName.message}</p>}
+            <div className={styles.formCols}>
+              <div className={styles.fieldGroup}>
+                <label htmlFor="firstName">Nombre</label>
+                <input
+                  id="firstName"
+                  type="text"
+                  placeholder="Juan"
+                  autoComplete="given-name"
+                  {...register("firstName", {
+                    required: "El nombre es obligatorio",
+                    maxLength: { value: 50, message: "El nombre no puede superar 50 caracteres" },
+                    validate: (value) => value.trim().length > 0 || "El nombre es obligatorio",
+                  })}
+                />
+                {errors.firstName && <p className={styles.fieldError}>{errors.firstName.message}</p>}
+              </div>
 
-            <label htmlFor="lastName">Apellido</label>
-            <input
-              id="lastName"
-              type="text"
-              placeholder="Pérez"
-              {...register("lastName", {
-                required: "El apellido es obligatorio",
-                maxLength: { value: 50, message: "El apellido no puede superar 50 caracteres" },
-                validate: (value) => value.trim().length > 0 || "El apellido es obligatorio",
-              })}
-            />
-            {errors.lastName && <p className={styles.fieldError}>{errors.lastName.message}</p>}
+              <div className={styles.fieldGroup}>
+                <label htmlFor="lastName">Apellido</label>
+                <input
+                  id="lastName"
+                  type="text"
+                  placeholder="Pérez"
+                  autoComplete="family-name"
+                  {...register("lastName", {
+                    required: "El apellido es obligatorio",
+                    maxLength: { value: 50, message: "El apellido no puede superar 50 caracteres" },
+                    validate: (value) => value.trim().length > 0 || "El apellido es obligatorio",
+                  })}
+                />
+                {errors.lastName && <p className={styles.fieldError}>{errors.lastName.message}</p>}
+              </div>
+            </div>
 
             <label htmlFor="email">Email</label>
             <input
               id="email"
               type="email"
               placeholder="tu@email.com"
+              autoComplete="email"
               {...register("email", {
                 required: "El email es obligatorio",
                 pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: "Ingresá un email válido" },
@@ -206,6 +213,7 @@ export default function RegisterClient({
               id="phone"
               type="tel"
               placeholder="11 5555 1234"
+              autoComplete="tel-national"
               {...register("phone", {
                 required: "El teléfono es obligatorio",
                 pattern: { value: ARGENTINA_PHONE_REGEX, message: "Ingresá un teléfono válido de Argentina" },
@@ -218,6 +226,7 @@ export default function RegisterClient({
               id="password"
               type="password"
               placeholder="********"
+              autoComplete="new-password"
               {...register("password", {
                 required: "La contraseña es obligatoria",
                 minLength: { value: 8, message: "La contraseña debe tener al menos 8 caracteres" },
@@ -234,6 +243,7 @@ export default function RegisterClient({
               id="confirmPassword"
               type="password"
               placeholder="********"
+              autoComplete="new-password"
               {...register("confirmPassword", {
                 required: "Confirmá tu contraseña",
                 validate: (value) => value === passwordValue || "Las contraseñas no coinciden",
@@ -241,15 +251,20 @@ export default function RegisterClient({
             />
             {errors.confirmPassword && <p className={styles.fieldError}>{errors.confirmPassword.message}</p>}
 
-            <div className={styles.actionsRow}>
-              <Link href="/recover-password" className={styles.hintLink}>Recuperar contraseña</Link>
-              <button type="submit" className={styles.submit} disabled={!isValid || isSubmitting}>
-                {isSubmitting ? "Creando cuenta..." : "Crear cuenta"}
-              </button>
-            </div>
+            <button type="submit" className={`${styles.submit} ${styles.submitFull}`} disabled={!isValid || isSubmitting}>
+              {isSubmitting ? "Creando cuenta..." : "Crear cuenta"}
+            </button>
           </form>
 
           {message && <p className={styles.formMessage}>{message}</p>}
+          {registeredEmail && (
+            <div className={styles.inlineActions}>
+              <button type="button" className={styles.secondaryButton} onClick={onResendVerification} disabled={isResending}>
+                {isResending ? "Reenviando..." : "Reenviar email de verificación"}
+              </button>
+            </div>
+          )}
+          {resendMessage && <p className={styles.formMessage}>{resendMessage}</p>}
           {message === "Ya tenés una cuenta" && (
             <p>
               <Link href={loginHref} className={styles.inlineLink}>Ya tengo cuenta / Ingresar</Link>
@@ -258,7 +273,14 @@ export default function RegisterClient({
 
           <div className={styles.separator}><span>o</span></div>
           <button type="button" className={styles.googleButton} onClick={onGoogleSubmit} disabled={isGoogleSubmitting}>
-            {isGoogleSubmitting ? "Conectando con Google..." : "Continuar con Google"}
+            {isGoogleSubmitting ? (
+              "Conectando con Google..."
+            ) : (
+              <span className={styles.googleButtonContent}>
+                <GoogleMark className={styles.googleMark} />
+                <span>Continuar con Google</span>
+              </span>
+            )}
           </button>
         </div>
       </section>

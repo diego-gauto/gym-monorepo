@@ -14,6 +14,8 @@ export interface IUserAuth {
   emailVerifiedAt?: Date | null;
   emailVerificationTokenHash?: string | null;
   emailVerificationTokenExpiresAt?: Date | null;
+  passwordResetTokenHash?: string | null;
+  passwordResetTokenExpiresAt?: Date | null;
   authProvider: AuthProvider;
   googleSub?: string | null;
 }

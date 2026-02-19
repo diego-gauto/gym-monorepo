@@ -36,6 +36,12 @@ export class UserAuth {
   @Column({ name: 'email_verification_token_expires_at', type: 'timestamp', nullable: true })
   emailVerificationTokenExpiresAt?: Date | null;
 
+  @Column({ name: 'password_reset_token_hash', type: 'varchar', nullable: true })
+  passwordResetTokenHash?: string | null;
+
+  @Column({ name: 'password_reset_token_expires_at', type: 'timestamp', nullable: true })
+  passwordResetTokenExpiresAt?: Date | null;
+
   @Column({
     name: 'auth_provider',
     type: 'enum',

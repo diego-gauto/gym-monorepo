@@ -6,6 +6,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { AuthProvider, MembershipStatus, UserRole } from '@gym-admin/shared';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { AuthEmailService } from './auth-email.service';
 import { LocalStrategy } from './strategies/local.strategy';
 import { User } from '../users/entities/user.entity';
 import { UserAuth } from '../users/entities/user-auth.entity';
@@ -18,6 +19,10 @@ describe('Auth module integration', () => {
   let localStrategy: LocalStrategy;
   const configServiceMock = {
     get: jest.fn(),
+  };
+  const authEmailServiceMock = {
+    sendVerificationEmail: jest.fn(),
+    sendPasswordResetEmail: jest.fn(),
   };
 
   const users: User[] = [];
@@ -141,6 +146,10 @@ describe('Auth module integration', () => {
           useValue: configServiceMock,
         },
         {
+          provide: AuthEmailService,
+          useValue: authEmailServiceMock,
+        },
+        {
           provide: getRepositoryToken(User),
           useValue: userRepository,
         },
@@ -175,21 +184,16 @@ describe('Auth module integration', () => {
     };
 
     const registerResponse = await authController.register(registerBody);
-    expect(registerResponse).toEqual(
-      expect.objectContaining({
-        access_token: expect.any(String),
-        user: {
-          email: 'ana@test.com',
-          role: UserRole.USER,
-        },
-      }),
-    );
+    expect(registerResponse).toEqual({ message: 'Te enviamos un email para activar tu cuenta.' });
 
     expect(users).toHaveLength(1);
     expect(users[0]?.status).toBe(MembershipStatus.ACTIVE);
     expect(auths).toHaveLength(1);
     expect(auths[0]?.password).not.toBe('Password123');
     expect(auths[0]?.authProvider).toBe(AuthProvider.LOCAL);
+
+    expect(auths[0]?.emailVerifiedAt).toBeNull();
+    auths[0]!.emailVerifiedAt = new Date();
 
     const validatedUser = await localStrategy.validate('ana@test.com', 'Password123');
     const loginResponse = await authController.login({ user: validatedUser });

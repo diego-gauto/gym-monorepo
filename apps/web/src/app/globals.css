@@ -42,6 +42,15 @@ body {
   scroll-behavior: smooth;
 }
 
+html {
+  overflow-y: auto;
+}
+
+body {
+  /* Avoid nested scrolling (html + body) in some browser/device combinations. */
+  overflow-y: visible;
+}
+
 h1, h2, h3, .accent-font {
   font-family: 'Space Grotesk', sans-serif;
   letter-spacing: -0.02em;

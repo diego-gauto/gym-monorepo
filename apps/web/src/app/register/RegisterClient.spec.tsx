@@ -1,8 +1,7 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { UserRole } from '@gym-admin/shared';
 import RegisterClient from './RegisterClient';
 import * as authFlow from '../../lib/auth-flow';
 import * as googleOAuth from '../../lib/google-oauth';
@@ -24,13 +23,12 @@ vi.mock('next/navigation', () => ({
 }));
 
 vi.mock('../../lib/auth-flow', () => ({
-  buildCheckoutUrl: vi.fn((plan: string) => `/checkout/mercadopago?plan=${plan}`),
   persistOrigin: vi.fn(),
   persistPlan: vi.fn(),
   registerUser: vi.fn(),
+  resendVerificationEmail: vi.fn(),
   resolveOrigin: vi.fn(),
   resolvePlan: vi.fn(),
-  saveAuthSession: vi.fn(),
 }));
 
 vi.mock('../../lib/google-oauth', () => ({
@@ -48,15 +46,13 @@ describe('RegisterClient', () => {
   it('renders register form and login link', () => {
     render(<RegisterClient initialPlan={null} initialOrigin={null} />);
     expect(screen.getByRole('heading', { name: 'Crear cuenta' })).toBeInTheDocument();
-    const loginLinks = screen.getAllByRole('link', { name: 'Ya tengo cuenta / Ingresar' });
-    expect(loginLinks[0]).toHaveAttribute('href', '/login?origin=login_manual&plan=yearly');
+    expect(screen.getByRole('link', { name: 'Inicia sesión' })).toHaveAttribute('href', '/login?origin=login_manual&plan=yearly');
   });
 
   it('renders login link without plan when none is selected', () => {
     vi.mocked(authFlow.resolvePlan).mockReturnValue(null);
     render(<RegisterClient initialPlan={null} initialOrigin={null} />);
-    const loginLinks = screen.getAllByRole('link', { name: 'Ya tengo cuenta / Ingresar' });
-    expect(loginLinks[0]).toHaveAttribute('href', '/login?origin=login_manual');
+    expect(screen.getByRole('link', { name: 'Inicia sesión' })).toHaveAttribute('href', '/login?origin=login_manual');
   });
 
   it('shows mismatch password validation', async () => {
@@ -74,14 +70,10 @@ describe('RegisterClient', () => {
     expect(await screen.findByText('Las contraseñas no coinciden')).toBeInTheDocument();
   });
 
-  it('submits valid register data and redirects to home', async () => {
+  it('submits valid register data and shows verification email message', async () => {
     const user = userEvent.setup();
     vi.mocked(authFlow.registerUser).mockResolvedValue({
-      access_token: 'jwt-token',
-      user: {
-        email: 'juan@test.com',
-        role: UserRole.USER,
-      },
+      message: 'Te enviamos un email para activar tu cuenta.',
     });
 
     render(<RegisterClient initialPlan={null} initialOrigin={null} />);
@@ -102,20 +94,15 @@ describe('RegisterClient', () => {
       password: 'Password123',
       confirmPassword: 'Password123',
     });
-    expect(authFlow.saveAuthSession).toHaveBeenCalledWith('jwt-token', 'juan@test.com', 'USER', 'login_manual');
-    expect(mockPush).toHaveBeenCalledWith('/');
+    expect(await screen.findByText('Te enviamos un email para activar tu cuenta.')).toBeInTheDocument();
+    expect(mockPush).not.toHaveBeenCalled();
   });
 
-  it('redirects to checkout after register when origin is elegir_plan', async () => {
+  it('allows resending verification email after successful register', async () => {
     const user = userEvent.setup();
-    vi.mocked(authFlow.resolveOrigin).mockReturnValue('elegir_plan');
-    vi.mocked(authFlow.resolvePlan).mockReturnValue('monthly');
-    vi.mocked(authFlow.registerUser).mockResolvedValue({
-      access_token: 'jwt-token',
-      user: {
-        email: 'juan@test.com',
-        role: UserRole.USER,
-      },
+    vi.mocked(authFlow.registerUser).mockResolvedValue({ message: 'Te enviamos un email para activar tu cuenta.' });
+    vi.mocked(authFlow.resendVerificationEmail).mockResolvedValue({
+      message: 'Si el email existe, te enviamos un nuevo link de verificación.',
     });
 
     render(<RegisterClient initialPlan={null} initialOrigin={null} />);
@@ -127,10 +114,10 @@ describe('RegisterClient', () => {
     await user.type(screen.getByLabelText('Contraseña'), 'Password123');
     await user.type(screen.getByLabelText('Confirmar contraseña'), 'Password123');
     await user.click(screen.getByRole('button', { name: 'Crear cuenta' }));
+    await user.click(screen.getByRole('button', { name: 'Reenviar email de verificación' }));
 
-    await waitFor(() => {
-      expect(mockPush).toHaveBeenCalledWith('/checkout/mercadopago?plan=monthly');
-    });
+    expect(authFlow.resendVerificationEmail).toHaveBeenCalledWith('juan@test.com');
+    expect(await screen.findByText('Si el email existe, te enviamos un nuevo link de verificación.')).toBeInTheDocument();
   });
 
   it('starts Google OAuth flow and preserves elegir_plan context', async () => {

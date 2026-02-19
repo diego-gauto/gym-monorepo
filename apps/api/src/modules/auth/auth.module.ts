@@ -11,6 +11,7 @@ import { LocalStrategy } from './strategies/local.strategy';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { RolesGuard } from './guards/roles.guard';
 import { AdminBootstrapService } from './admin-bootstrap.service';
+import { AuthEmailService } from './auth-email.service';
 
 @Module({
   imports: [
@@ -26,7 +27,7 @@ import { AdminBootstrapService } from './admin-bootstrap.service';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, LocalStrategy, JwtStrategy, RolesGuard, AdminBootstrapService],
+  providers: [AuthService, LocalStrategy, JwtStrategy, RolesGuard, AdminBootstrapService, AuthEmailService],
   exports: [AuthService, RolesGuard],
 })
 export class AuthModule {}
