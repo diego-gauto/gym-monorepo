@@ -962,7 +962,10 @@ export class AdminContentService {
   }
 
   async searchStudentsForCounterPayment(query: string) {
-    const q = query.trim().toLowerCase();
+    const trimmedQuery = query.trim();
+    const q = trimmedQuery.toLowerCase();
+    const normalizedFullNameQuery = q.replace(/\s+/g, ' ');
+    const phoneDigitsQuery = trimmedQuery.replace(/\D+/g, '');
     if (q.length < 2) {
       return { items: [] as CounterPaymentStudent[] };
     }
@@ -976,8 +979,16 @@ export class AdminContentService {
             .where('LOWER(user.email) LIKE :q', { q: `%${q}%` })
             .orWhere('LOWER(user.first_name) LIKE :q', { q: `%${q}%` })
             .orWhere('LOWER(user.last_name) LIKE :q', { q: `%${q}%` })
-            .orWhere("LOWER(CONCAT(user.first_name, ' ', user.last_name)) LIKE :q", { q: `%${q}%` })
-            .orWhere('COALESCE(user.phone, \'\') LIKE :phoneQuery', { phoneQuery: `%${query.trim()}%` });
+            .orWhere(
+              "REGEXP_REPLACE(LOWER(CONCAT_WS(' ', user.first_name, user.last_name)), '[[:space:]]+', ' ', 'g') LIKE :fullNameQuery",
+              { fullNameQuery: `%${normalizedFullNameQuery}%` },
+            )
+            .orWhere('COALESCE(user.phone, \'\') LIKE :phoneQuery', { phoneQuery: `%${trimmedQuery}%` });
+          if (phoneDigitsQuery.length >= 4) {
+            qb.orWhere("REGEXP_REPLACE(COALESCE(user.phone, ''), '[^0-9]', '', 'g') LIKE :phoneDigitsQuery", {
+              phoneDigitsQuery: `%${phoneDigitsQuery}%`,
+            });
+          }
         }),
       )
       .orderBy('user.createdAt', 'DESC')
