@@ -1,20 +1,23 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { CurrencyCode, InvoiceStatus, MembershipStatus, PlanType } from '@gym-admin/shared';
+import { CurrencyCode, InvoiceStatus, MembershipStatus, PaymentMethod, PlanType, UserRole } from '@gym-admin/shared';
 import { randomUUID } from 'crypto';
-import { In, IsNull, MoreThan, Repository } from 'typeorm';
+import { Brackets, In, IsNull, MoreThan, Repository } from 'typeorm';
 import { Invoice } from '../billing/entities/invoice.entity';
 import { Plan } from '../billing/entities/plan.entity';
 import { Subscription } from '../billing/entities/subscription.entity';
 import { User } from '../users/entities/user.entity';
 import { CreateActivityDto, UpdateActivityDto } from './dto/activity.dto';
 import { CreateBenefitDto, UpdateBenefitDto } from './dto/benefit.dto';
+import { CreateBranchDto, UpdateBranchDto } from './dto/branch.dto';
+import { RegisterCounterPaymentDto } from './dto/register-counter-payment.dto';
 import { UpsertPlanContentDto } from './dto/plan-content.dto';
 import { UpdateSiteSettingsDto } from './dto/site-settings.dto';
 import { CreateTrainerDto, UpdateTrainerDto } from './dto/trainer.dto';
 import { Activity } from './entities/activity.entity';
 import { AdminContent } from './entities/admin-content.entity';
 import { Benefit } from './entities/benefit.entity';
+import { GymBranch } from './entities/gym-branch.entity';
 import { GymSiteSettings } from './entities/gym-site-settings.entity';
 import { Trainer } from './entities/trainer.entity';
 
@@ -61,6 +64,14 @@ type BenefitItem = {
   active: boolean;
 };
 
+type BranchItem = {
+  id: string;
+  code: string;
+  name: string;
+  address: string;
+  active: boolean;
+};
+
 type PlanItem = {
   id: string;
   name: string;
@@ -72,6 +83,23 @@ type PlanItem = {
   badge?: string | null;
   active: boolean;
 };
+
+type CounterPaymentStudent = {
+  uuid: string;
+  fullName: string;
+  email: string;
+  phone: string | null;
+  status: MembershipStatus;
+  hasActiveSubscription: boolean;
+  activeSubscriptionEndDate: string | null;
+  latestOneTimePaidAt: string | null;
+};
+
+const ACTIVE_SUBSCRIPTION_STATUSES = [
+  MembershipStatus.ACTIVE,
+  MembershipStatus.PENDING_CANCELLATION,
+  MembershipStatus.GRACE_PERIOD,
+] as const;
 
 const LEGACY_KEY_SITE = 'site_settings';
 const LEGACY_KEY_TRAINERS = 'trainers';
@@ -256,6 +284,23 @@ const DEFAULT_PLANS: PlanItem[] = [
   },
 ];
 
+const DEFAULT_BRANCHES: BranchItem[] = [
+  {
+    id: 'branch-main',
+    code: 'main',
+    name: 'Sede Principal',
+    address: 'Av. del Libertador 1234, CABA',
+    active: true,
+  },
+  {
+    id: 'branch-centro',
+    code: 'centro',
+    name: 'Sede Centro',
+    address: 'Av. Corrientes 2100, CABA',
+    active: false,
+  },
+];
+
 @Injectable()
 export class AdminContentService {
   private attemptedLegacyMigration = false;
@@ -269,6 +314,8 @@ export class AdminContentService {
     private readonly activityRepository: Repository<Activity>,
     @InjectRepository(Benefit)
     private readonly benefitRepository: Repository<Benefit>,
+    @InjectRepository(GymBranch)
+    private readonly branchRepository: Repository<GymBranch>,
     @InjectRepository(AdminContent)
     private readonly legacyAdminContentRepository: Repository<AdminContent>,
     @InjectRepository(User)
@@ -291,6 +338,19 @@ export class AdminContentService {
     };
     const days = map[range ?? 'month'] ?? 30;
     return new Date(now.getTime() - (days * 24 * 60 * 60 * 1000));
+  }
+
+  private getPeriodDaysByPlan(planId: PlanType): number {
+    switch (planId) {
+      case PlanType.MONTHLY:
+        return 30;
+      case PlanType.QUARTERLY:
+        return 90;
+      case PlanType.YEARLY:
+        return 365;
+      default:
+        return 30;
+    }
   }
 
   private toSiteSettings(payload: GymSiteSettings): SiteSettings {
@@ -344,6 +404,16 @@ export class AdminContentService {
     };
   }
 
+  private toBranchItem(payload: GymBranch): BranchItem {
+    return {
+      id: payload.id,
+      code: payload.code,
+      name: payload.name,
+      address: payload.address,
+      active: payload.active,
+    };
+  }
+
   private toPlanItem(payload: Plan): PlanItem {
     return {
       id: payload.id,
@@ -369,6 +439,15 @@ export class AdminContentService {
   private asStringArray(value: unknown): string[] {
     if (!Array.isArray(value)) return [];
     return value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
+  }
+
+  private toActivitySlug(value: string): string {
+    return value
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
   }
 
   private async getLegacyPayload<T>(key: string): Promise<T | null> {
@@ -588,6 +667,24 @@ export class AdminContentService {
     }
   }
 
+  private async ensureBranchDefaults() {
+    await this.ensureLegacyMigration();
+    const count = await this.branchRepository.count();
+    if (count > 0) return;
+
+    await this.branchRepository.save(
+      DEFAULT_BRANCHES.map((branch) =>
+        this.branchRepository.create({
+          id: branch.id,
+          code: branch.code,
+          name: branch.name,
+          address: branch.address,
+          active: branch.active,
+        }),
+      ),
+    );
+  }
+
   async getSiteSettings() {
     const row = await this.ensureSiteSettings();
     return this.toSiteSettings(row);
@@ -654,6 +751,7 @@ export class AdminContentService {
 
   async createActivity(payload: CreateActivityDto) {
     await this.ensureLegacyMigration();
+    const derivedSlug = this.toActivitySlug(payload.name);
     const trainers =
       payload.trainerIds.length > 0
         ? await this.trainerRepository.find({ where: { id: In(payload.trainerIds) } })
@@ -662,7 +760,7 @@ export class AdminContentService {
     const created = await this.activityRepository.save(
       this.activityRepository.create({
         id: randomUUID(),
-        slug: payload.slug,
+        slug: derivedSlug || payload.slug.trim().toLowerCase(),
         name: payload.name,
         shortDescription: payload.shortDescription,
         description: payload.description,
@@ -684,8 +782,11 @@ export class AdminContentService {
     const current = await this.activityRepository.findOne({ where: { id } });
     if (!current) return null;
 
-    if (payload.slug !== undefined) current.slug = payload.slug;
-    if (payload.name !== undefined) current.name = payload.name;
+    if (payload.name !== undefined) {
+      current.name = payload.name;
+      const derivedSlug = this.toActivitySlug(payload.name);
+      if (derivedSlug) current.slug = derivedSlug;
+    }
     if (payload.shortDescription !== undefined) current.shortDescription = payload.shortDescription;
     if (payload.description !== undefined) current.description = payload.description;
     if (payload.cardImage !== undefined) current.cardImage = payload.cardImage;
@@ -717,6 +818,48 @@ export class AdminContentService {
     await this.ensureBenefitsDefaults();
     const rows = await this.benefitRepository.find({ order: { createdAt: 'ASC' } });
     return rows.map((row) => this.toBenefitItem(row));
+  }
+
+  async getBranches() {
+    await this.ensureBranchDefaults();
+    const rows = await this.branchRepository.find({ order: { createdAt: 'ASC' } });
+    return rows.map((row) => this.toBranchItem(row));
+  }
+
+  async createBranch(payload: CreateBranchDto) {
+    await this.ensureLegacyMigration();
+    const created = await this.branchRepository.save(
+      this.branchRepository.create({
+        id: randomUUID(),
+        code: payload.code.trim().toLowerCase(),
+        name: payload.name.trim(),
+        address: payload.address?.trim() ?? '',
+        active: payload.active,
+      }),
+    );
+    return this.toBranchItem(created);
+  }
+
+  async updateBranch(id: string, payload: UpdateBranchDto) {
+    await this.ensureLegacyMigration();
+    const current = await this.branchRepository.findOne({ where: { id } });
+    if (!current) return null;
+
+    if (payload.code !== undefined) current.code = payload.code.trim().toLowerCase();
+    if (payload.name !== undefined) current.name = payload.name.trim();
+    if (payload.address !== undefined) current.address = payload.address.trim();
+    if (payload.active !== undefined) current.active = payload.active;
+    const updated = await this.branchRepository.save(current);
+    return this.toBranchItem(updated);
+  }
+
+  async deleteBranch(id: string) {
+    await this.ensureLegacyMigration();
+    const current = await this.branchRepository.findOne({ where: { id } });
+    if (!current) return { deleted: true };
+    current.active = false;
+    await this.branchRepository.save(current);
+    return { deleted: true };
   }
 
   async createBenefit(payload: CreateBenefitDto) {
@@ -818,31 +961,227 @@ export class AdminContentService {
     return activities.find((activity) => activity.slug === slug) ?? null;
   }
 
+  async searchStudentsForCounterPayment(query: string) {
+    const q = query.trim().toLowerCase();
+    if (q.length < 2) {
+      return { items: [] as CounterPaymentStudent[] };
+    }
+
+    const users = await this.userRepository
+      .createQueryBuilder('user')
+      .where('user.role = :role', { role: UserRole.USER })
+      .andWhere(
+        new Brackets((qb) => {
+          qb
+            .where('LOWER(user.email) LIKE :q', { q: `%${q}%` })
+            .orWhere('LOWER(user.first_name) LIKE :q', { q: `%${q}%` })
+            .orWhere('LOWER(user.last_name) LIKE :q', { q: `%${q}%` })
+            .orWhere("LOWER(CONCAT(user.first_name, ' ', user.last_name)) LIKE :q", { q: `%${q}%` })
+            .orWhere('COALESCE(user.phone, \'\') LIKE :phoneQuery', { phoneQuery: `%${query.trim()}%` });
+        }),
+      )
+      .orderBy('user.createdAt', 'DESC')
+      .take(20)
+      .getMany();
+
+    if (users.length === 0) {
+      return { items: [] as CounterPaymentStudent[] };
+    }
+
+    const userIds = users.map((item) => item.id);
+    const now = new Date();
+
+    const [subscriptions, oneTimeInvoices] = await Promise.all([
+      this.subscriptionRepository.find({
+        where: {
+          userId: In(userIds),
+          status: In([...ACTIVE_SUBSCRIPTION_STATUSES]),
+          endDate: MoreThan(now),
+        } as any,
+        order: { endDate: 'DESC' },
+      }),
+      this.invoiceRepository.find({
+        where: {
+          userId: In(userIds),
+          status: InvoiceStatus.PAID,
+          subscriptionId: IsNull(),
+        },
+        order: { paidAt: 'DESC', createdAt: 'DESC' },
+      }),
+    ]);
+
+    const activeSubByUser = new Map<number, Subscription>();
+    for (const sub of subscriptions) {
+      if (!activeSubByUser.has(sub.userId)) {
+        activeSubByUser.set(sub.userId, sub);
+      }
+    }
+
+    const latestOneTimeByUser = new Map<number, Invoice>();
+    for (const invoice of oneTimeInvoices) {
+      if (!latestOneTimeByUser.has(invoice.userId)) {
+        latestOneTimeByUser.set(invoice.userId, invoice);
+      }
+    }
+
+    return {
+      items: users.map((user) => {
+        const activeSubscription = activeSubByUser.get(user.id);
+        const latestOneTime = latestOneTimeByUser.get(user.id);
+        const fullName = `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim();
+        return {
+          uuid: user.uuid,
+          fullName: fullName.length > 0 ? fullName : user.email,
+          email: user.email,
+          phone: user.phone ?? null,
+          status: user.status,
+          hasActiveSubscription: Boolean(activeSubscription),
+          activeSubscriptionEndDate: activeSubscription?.endDate?.toISOString() ?? null,
+          latestOneTimePaidAt: (latestOneTime?.paidAt ?? latestOneTime?.createdAt)?.toISOString() ?? null,
+        };
+      }),
+    };
+  }
+
+  async registerCounterOneTimePayment(payload: RegisterCounterPaymentDto) {
+    const user = await this.userRepository.findOne({
+      where: {
+        uuid: payload.userUuid,
+        role: UserRole.USER,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('No encontramos al alumno indicado.');
+    }
+
+    const now = new Date();
+    const activeSubscription = await this.subscriptionRepository.findOne({
+      where: {
+        userId: user.id,
+        status: In([...ACTIVE_SUBSCRIPTION_STATUSES]),
+        endDate: MoreThan(now),
+      } as any,
+      order: { endDate: 'DESC' },
+    });
+    if (activeSubscription) {
+      throw new BadRequestException('El alumno ya tiene una suscripción activa. No corresponde registrar un pago único.');
+    }
+
+    const plan = await this.planRepository.findOne({
+      where: {
+        id: payload.planId,
+        isActive: true,
+      },
+    });
+
+    if (!plan) {
+      throw new NotFoundException('El plan seleccionado no está disponible.');
+    }
+
+    const latestOneTimeInvoice = await this.invoiceRepository.findOne({
+      where: {
+        userId: user.id,
+        status: InvoiceStatus.PAID,
+        subscriptionId: IsNull(),
+      },
+      order: { paidAt: 'DESC', createdAt: 'DESC' },
+    });
+
+    if (latestOneTimeInvoice) {
+      const planByAmount = await this.planRepository.findOne({
+        where: {
+          currency: latestOneTimeInvoice.currency,
+          price: latestOneTimeInvoice.amount,
+          isActive: true,
+        },
+      });
+      const previousPlanId = planByAmount?.id ?? PlanType.MONTHLY;
+      const previousPeriodDays = this.getPeriodDaysByPlan(previousPlanId);
+      const previousPaidAt = latestOneTimeInvoice.paidAt ?? latestOneTimeInvoice.createdAt;
+      const previousPeriodEnd = new Date(previousPaidAt.getTime() + (previousPeriodDays * 24 * 60 * 60 * 1000));
+      if (previousPeriodEnd > now) {
+        throw new BadRequestException(
+          `El alumno ya tiene un período pago vigente hasta ${previousPeriodEnd.toLocaleDateString('es-AR')}.`,
+        );
+      }
+    }
+
+    const invoice = this.invoiceRepository.create({
+      userId: user.id,
+      amount: plan.price,
+      currency: plan.currency,
+      status: InvoiceStatus.PAID,
+      paymentMethod: payload.paymentMethod as PaymentMethod,
+      idempotencyKey: `counter-${randomUUID()}`,
+      paidAt: now,
+    });
+
+    const savedInvoice = await this.invoiceRepository.save(invoice);
+    user.status = MembershipStatus.ACTIVE;
+    await this.userRepository.save(user);
+
+    return {
+      message: 'Pago físico registrado correctamente.',
+      invoice: {
+        uuid: savedInvoice.uuid,
+        userUuid: user.uuid,
+        studentName: `${user.firstName} ${user.lastName}`.trim(),
+        studentEmail: user.email,
+        planId: plan.id,
+        amount: savedInvoice.amount,
+        currency: savedInvoice.currency,
+        paymentMethod: savedInvoice.paymentMethod,
+        paidAt: savedInvoice.paidAt?.toISOString() ?? now.toISOString(),
+      },
+    };
+  }
+
   async getStats(range?: string) {
-    const fromDate = this.fromRange(range);
     const now = new Date();
     const activeStatuses = [MembershipStatus.ACTIVE, MembershipStatus.PENDING_CANCELLATION, MembershipStatus.GRACE_PERIOD];
+    const stoppedPayingStatuses = [
+      MembershipStatus.GRACE_PERIOD,
+      MembershipStatus.REJECTED,
+      MembershipStatus.REJECTED_FATAL,
+      MembershipStatus.EXPIRED,
+    ];
 
-    const [
-      totalUsers,
-      newUsers,
-      activeUsers,
-      activeSubscriptions,
-      stoppedSubscriptions,
-      cancelledSubscriptions,
-      oneTimePaidInvoices,
-      activeSubs,
-    ] = await Promise.all([
-      this.userRepository.count(),
-      this.userRepository.count({ where: { createdAt: MoreThan(fromDate) } }),
-      this.userRepository.count({ where: { status: MembershipStatus.ACTIVE } }),
-      this.subscriptionRepository.count({ where: { status: In(activeStatuses), endDate: MoreThan(now) } as any }),
-      this.subscriptionRepository.count({
-        where: { status: In([MembershipStatus.REJECTED, MembershipStatus.REJECTED_FATAL, MembershipStatus.EXPIRED]) } as any,
+    const isSnapshot = !range || range === 'snapshot';
+    const fromDate = this.fromRange(range);
+
+    const [totalUsers, activeUsers, activeSubs, allOneTimePaidInvoices, plans, periodStoppedPaying, periodCancelled] = await Promise.all([
+      this.userRepository.count({ where: { role: UserRole.USER } }),
+      this.userRepository.count({ where: { role: UserRole.USER, status: MembershipStatus.ACTIVE } }),
+      this.subscriptionRepository.find({
+        where: { status: In(activeStatuses), endDate: MoreThan(now), user: { role: UserRole.USER } } as any,
       }),
-      this.subscriptionRepository.count({ where: { status: MembershipStatus.CANCELLED } }),
-      this.invoiceRepository.find({ where: { status: InvoiceStatus.PAID, paidAt: MoreThan(fromDate), subscriptionId: IsNull() } }),
-      this.subscriptionRepository.find({ where: { status: In(activeStatuses), endDate: MoreThan(now) } as any }),
+      this.invoiceRepository.find({
+        where: {
+          user: { role: UserRole.USER },
+          status: InvoiceStatus.PAID,
+          subscriptionId: IsNull(),
+          ...(isSnapshot ? {} : { paidAt: MoreThan(fromDate) }),
+        } as any,
+        order: { paidAt: 'DESC', createdAt: 'DESC' },
+      }),
+      this.planRepository.find(),
+      isSnapshot
+        ? Promise.resolve([])
+        : this.subscriptionRepository.find({
+            where: {
+              status: In(stoppedPayingStatuses),
+              updatedAt: MoreThan(fromDate),
+              user: { role: UserRole.USER },
+            } as any,
+            select: { id: true, userId: true },
+          }),
+      isSnapshot
+        ? Promise.resolve([])
+        : this.subscriptionRepository.find({
+            where: { status: MembershipStatus.CANCELLED, updatedAt: MoreThan(fromDate), user: { role: UserRole.USER } } as any,
+            select: { id: true, userId: true },
+          }),
     ]);
 
     const byPlan = activeSubs.reduce<Record<string, number>>((acc, subscription) => {
@@ -850,25 +1189,49 @@ export class AdminContentService {
       return acc;
     }, {});
 
-    const oneTimeByAmount = oneTimePaidInvoices.reduce<Record<string, number>>((acc, invoice) => {
+    const latestOneTimeByUser = new Map<number, Invoice>();
+    for (const invoice of allOneTimePaidInvoices) {
+      if (!latestOneTimeByUser.has(invoice.userId)) {
+        latestOneTimeByUser.set(invoice.userId, invoice);
+      }
+    }
+    const uniqueOneTimeInvoices = Array.from(latestOneTimeByUser.values());
+
+    const oneTimeByAmount = uniqueOneTimeInvoices.reduce<Record<string, number>>((acc, invoice) => {
       const key = `${invoice.currency} ${invoice.amount}`;
       acc[key] = (acc[key] ?? 0) + 1;
       return acc;
     }, {});
 
+    const planKeyToId = new Map<string, string>();
+    for (const plan of plans) {
+      planKeyToId.set(`${plan.currency}|${Number(plan.price)}`, plan.id);
+    }
+    const oneTimeByPlan = uniqueOneTimeInvoices.reduce<Record<string, number>>((acc, invoice) => {
+      const key = planKeyToId.get(`${invoice.currency}|${Number(invoice.amount)}`) ?? 'OTRO';
+      acc[key] = (acc[key] ?? 0) + 1;
+      return acc;
+    }, {});
+
+    const activeSubscriptions = activeSubs.length;
+    const periodStoppedPayingUsers = new Set(periodStoppedPaying.map((item) => item.userId));
+    const periodCancelledUsers = new Set(periodCancelled.map((item) => item.userId));
+
     return {
-      range: range ?? 'month',
-      from: fromDate,
+      range: isSnapshot ? 'snapshot' : range,
+      from: isSnapshot ? now : fromDate,
       totals: {
         users: totalUsers,
-        newUsers,
         activeUsers,
         activeSubscriptions,
-        oneTimePaidUsers: oneTimePaidInvoices.length,
-        stoppedPaying: stoppedSubscriptions,
-        cancelled: cancelledSubscriptions,
+        oneTimePaidUsers: uniqueOneTimeInvoices.length,
+      },
+      period: {
+        usersStoppedPaying: periodStoppedPayingUsers.size,
+        usersCancelled: periodCancelledUsers.size,
       },
       subscriptionsByPlan: byPlan,
+      oneTimeByPlan,
       oneTimeByAmount,
     };
   }

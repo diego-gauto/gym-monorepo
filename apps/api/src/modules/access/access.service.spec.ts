@@ -5,6 +5,7 @@ import { User } from '../users/entities/user.entity';
 import { MedicalCertificate } from './entities/medical-certificate.entity';
 import { InvoiceStatus, MembershipStatus } from '@gym-admin/shared';
 import { UnauthorizedException } from '@nestjs/common';
+import { Plan } from '../billing/entities/plan.entity';
 import { Subscription } from '../billing/entities/subscription.entity';
 import { Invoice } from '../billing/entities/invoice.entity';
 import { Attendance } from './entities/attendance.entity';
@@ -16,6 +17,7 @@ describe('AccessService', () => {
   let certRepo: any;
   let subscriptionRepo: any;
   let invoiceRepo: any;
+  let planRepo: any;
   let attendanceRepo: any;
   let configGet: jest.Mock;
 
@@ -30,6 +32,9 @@ describe('AccessService', () => {
       findOne: jest.fn(),
     };
     invoiceRepo = {
+      findOne: jest.fn(),
+    };
+    planRepo = {
       findOne: jest.fn(),
     };
     attendanceRepo = {
@@ -55,6 +60,7 @@ describe('AccessService', () => {
         { provide: getRepositoryToken(MedicalCertificate), useValue: certRepo },
         { provide: getRepositoryToken(Subscription), useValue: subscriptionRepo },
         { provide: getRepositoryToken(Invoice), useValue: invoiceRepo },
+        { provide: getRepositoryToken(Plan), useValue: planRepo },
         { provide: getRepositoryToken(Attendance), useValue: attendanceRepo },
         {
           provide: ConfigService,
@@ -83,6 +89,7 @@ describe('AccessService', () => {
       });
       subscriptionRepo.findOne.mockResolvedValue(null);
       invoiceRepo.findOne.mockResolvedValue(null);
+      planRepo.findOne.mockResolvedValue(null);
       certRepo.findOne.mockResolvedValue({
         validUntil: new Date('2099-01-01T00:00:00.000Z'),
       });
@@ -99,6 +106,7 @@ describe('AccessService', () => {
       });
       subscriptionRepo.findOne.mockResolvedValue(null);
       invoiceRepo.findOne.mockResolvedValue(null);
+      planRepo.findOne.mockResolvedValue(null);
       certRepo.findOne.mockResolvedValue({
         validUntil: new Date('2099-01-01T00:00:00.000Z'),
       });
@@ -151,6 +159,30 @@ describe('AccessService', () => {
       invoiceRepo.findOne.mockResolvedValue({
         status: InvoiceStatus.PAID,
         paidAt,
+        amount: 10000,
+        currency: 'ARS',
+      });
+      planRepo.findOne.mockResolvedValue(null);
+      certRepo.findOne.mockResolvedValue({ validUntil: new Date(2099, 0, 1) });
+
+      const result = await service.getCheckInEligibility('uuid', 'main', getValidQrToken());
+      expect(result.canCheckIn).toBe(true);
+      expect(result.membership?.source).toBe('ONE_TIME_PERIOD');
+    });
+
+    it('should keep quarterly one-time period active according to plan price', async () => {
+      userRepo.findOne.mockResolvedValue({ id: 1, uuid: 'user-1', status: MembershipStatus.ACTIVE });
+      subscriptionRepo.findOne.mockResolvedValue(null);
+      const paidAt = new Date();
+      paidAt.setDate(paidAt.getDate() - 70);
+      invoiceRepo.findOne.mockResolvedValue({
+        status: InvoiceStatus.PAID,
+        paidAt,
+        amount: 36000,
+        currency: 'ARS',
+      });
+      planRepo.findOne.mockResolvedValue({
+        id: 'QUARTERLY',
       });
       certRepo.findOne.mockResolvedValue({ validUntil: new Date(2099, 0, 1) });
 

@@ -12,6 +12,8 @@ export enum PaymentMethod {
   MP_CARD = 'MP_CARD',
   CASH = 'CASH',
   POSTNET = 'POSTNET',
+  QR = 'QR',
+  BANK_TRANSFER = 'BANK_TRANSFER',
 }
 
 export enum InvoiceStatus {

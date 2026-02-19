@@ -5,7 +5,10 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { CreateActivityDto, UpdateActivityDto } from './dto/activity.dto';
 import { CreateBenefitDto, UpdateBenefitDto } from './dto/benefit.dto';
+import { CreateBranchDto, UpdateBranchDto } from './dto/branch.dto';
+import { RegisterCounterPaymentDto } from './dto/register-counter-payment.dto';
 import { UpsertPlanContentDto } from './dto/plan-content.dto';
+import { SearchStudentsDto } from './dto/search-students.dto';
 import { UpdateSiteSettingsDto } from './dto/site-settings.dto';
 import { StatsRangeQueryDto } from './dto/stats-range.dto';
 import { CreateTrainerDto, UpdateTrainerDto } from './dto/trainer.dto';
@@ -35,6 +38,20 @@ export class AdminContentController {
   @Roles(UserRole.ADMIN)
   getStats(@Query() query: StatsRangeQueryDto) {
     return this.adminContentService.getStats(query.range);
+  }
+
+  @Get('admin/payments/students')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  searchStudents(@Query() query: SearchStudentsDto) {
+    return this.adminContentService.searchStudentsForCounterPayment(query.q);
+  }
+
+  @Post('admin/payments/one-time')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  registerOneTimePayment(@Body() payload: RegisterCounterPaymentDto) {
+    return this.adminContentService.registerCounterOneTimePayment(payload);
   }
 
   @Get('admin/content/site')
@@ -112,6 +129,34 @@ export class AdminContentController {
   @Roles(UserRole.ADMIN)
   getBenefits() {
     return this.adminContentService.getBenefits();
+  }
+
+  @Get('admin/content/branches')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  getBranches() {
+    return this.adminContentService.getBranches();
+  }
+
+  @Post('admin/content/branches')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  createBranch(@Body() payload: CreateBranchDto) {
+    return this.adminContentService.createBranch(payload);
+  }
+
+  @Patch('admin/content/branches/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  updateBranch(@Param('id') id: string, @Body() payload: UpdateBranchDto) {
+    return this.adminContentService.updateBranch(id, payload);
+  }
+
+  @Delete('admin/content/branches/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  deleteBranch(@Param('id') id: string) {
+    return this.adminContentService.deleteBranch(id);
   }
 
   @Post('admin/content/benefits')

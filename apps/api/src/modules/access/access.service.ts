@@ -2,10 +2,11 @@ import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { addDays } from 'date-fns';
-import { InvoiceStatus, MembershipStatus } from '@gym-admin/shared';
+import { InvoiceStatus, MembershipStatus, PlanType } from '@gym-admin/shared';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { In, IsNull, MoreThan, Repository } from 'typeorm';
 import { Invoice } from '../billing/entities/invoice.entity';
+import { Plan } from '../billing/entities/plan.entity';
 import { Subscription } from '../billing/entities/subscription.entity';
 import { User } from '../users/entities/user.entity';
 import { Attendance } from './entities/attendance.entity';
@@ -76,6 +77,8 @@ export class AccessService {
     private readonly subscriptionRepository: Repository<Subscription>,
     @InjectRepository(Invoice)
     private readonly invoiceRepository: Repository<Invoice>,
+    @InjectRepository(Plan)
+    private readonly planRepository: Repository<Plan>,
     @InjectRepository(Attendance)
     private readonly attendanceRepository: Repository<Attendance>,
     private readonly configService: ConfigService,
@@ -317,6 +320,31 @@ export class AccessService {
     return Number.isFinite(parsed) && parsed >= 0 ? parsed : 7;
   }
 
+  private getPeriodDaysByPlan(planId: PlanType) {
+    switch (planId) {
+      case PlanType.MONTHLY:
+        return 30;
+      case PlanType.QUARTERLY:
+        return 90;
+      case PlanType.YEARLY:
+        return 365;
+      default:
+        return this.getSinglePeriodDays();
+    }
+  }
+
+  private async resolveSinglePeriodDaysFromInvoice(invoice: Invoice): Promise<number> {
+    const matchedPlan = await this.planRepository.findOne({
+      where: {
+        currency: invoice.currency,
+        price: invoice.amount,
+        isActive: true,
+      },
+    });
+    if (!matchedPlan) return this.getSinglePeriodDays();
+    return this.getPeriodDaysByPlan(matchedPlan.id);
+  }
+
   private getUserName(user: User) {
     const fullName = `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim();
     if (fullName.length > 0) return fullName;
@@ -357,7 +385,8 @@ export class AccessService {
 
     if (latestSingleInvoice) {
       const paidReference = latestSingleInvoice.paidAt ?? latestSingleInvoice.createdAt;
-      const periodEnd = addDays(paidReference, this.getSinglePeriodDays());
+      const periodDays = await this.resolveSinglePeriodDaysFromInvoice(latestSingleInvoice);
+      const periodEnd = addDays(paidReference, periodDays);
       const graceEnd = addDays(periodEnd, this.getSingleGraceDays());
       if (graceEnd >= now) {
         return {

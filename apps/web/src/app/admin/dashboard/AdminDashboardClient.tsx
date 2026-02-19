@@ -1,21 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { CurrencyCode, UserRole } from "@gym-admin/shared";
+import { CurrencyCode, PaymentMethod, PlanType, UserRole } from "@gym-admin/shared";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   clearAuthFlowState,
   createAdminActivity,
   createAdminBenefit,
+  createAdminBranch,
   createAdminTrainer,
   deleteAdminActivity,
   deleteAdminBenefit,
+  deleteAdminBranch,
   deleteAdminPlan,
   deleteAdminTrainer,
   fetchAdminActivities,
   fetchAdminBenefits,
+  fetchAdminBranches,
   fetchAdminCheckInQr,
+  searchAdminCounterPaymentStudents,
   fetchAdminPlans,
   fetchAdminSiteSettings,
   fetchAdminStats,
@@ -23,38 +27,59 @@ import {
   getSession,
   type AdminActivity,
   type AdminBenefit,
+  type AdminBranch,
   type AdminCheckInQrResponse,
+  type AdminCounterPaymentStudent,
   type AdminPlan,
   type AdminRange,
   type AdminSiteSettings,
   type AdminStatsResponse,
   type AdminTrainer,
+  type SessionUser,
+  registerAdminCounterPayment,
   updateAdminActivity,
   updateAdminBenefit,
+  updateAdminBranch,
   updateAdminSiteSettings,
   updateAdminTrainer,
   upsertAdminPlan,
 } from "../../../lib/auth-flow";
 import styles from "./AdminDashboardClient.module.css";
 
-type DashboardTab = "stats" | "site" | "trainers" | "activities" | "benefits" | "plans" | "qr";
+type DashboardTab = "stats" | "counterPayments" | "site" | "trainers" | "activities" | "benefits" | "plans" | "branches" | "qr";
 
-const RANGE_OPTIONS: Array<{ value: AdminRange; label: string }> = [
+const TABS: Array<{ id: DashboardTab; label: string }> = [
+  { id: "stats", label: "Estadísticas" },
+  { id: "counterPayments", label: "Pagos mostrador" },
+  { id: "site", label: "Sitio y Hero" },
+  { id: "trainers", label: "Profesores" },
+  { id: "activities", label: "Actividades" },
+  { id: "benefits", label: "Beneficios" },
+  { id: "plans", label: "Planes" },
+  { id: "branches", label: "Sedes" },
+  { id: "qr", label: "QR Check-in" },
+];
+
+const STATS_RANGE_OPTIONS: Array<{ value: AdminRange; label: string }> = [
+  { value: "snapshot", label: "Actual" },
   { value: "week", label: "Semana" },
   { value: "month", label: "Mes" },
   { value: "quarter", label: "Trimestre" },
   { value: "year", label: "Año" },
 ];
 
-const TABS: Array<{ id: DashboardTab; label: string }> = [
-  { id: "stats", label: "Estadísticas" },
-  { id: "site", label: "Sitio y Hero" },
-  { id: "trainers", label: "Profesores" },
-  { id: "activities", label: "Actividades" },
-  { id: "benefits", label: "Beneficios" },
-  { id: "plans", label: "Planes" },
-  { id: "qr", label: "QR Check-in" },
-];
+const BENEFIT_ICON_OPTIONS = [
+  "DUMBBELL",
+  "GROUP",
+  "CLOCK",
+  "TROPHY",
+  "HEART",
+  "BOLT",
+  "STAR",
+  "SHIELD",
+  "FIRE",
+  "RUN",
+] as const;
 
 const EMPTY_SITE: AdminSiteSettings = {
   heroBadge: "",
@@ -108,6 +133,13 @@ const EMPTY_PLAN: AdminPlan = {
   active: true,
 };
 
+const COUNTER_PAYMENT_METHOD_OPTIONS: Array<{ value: PaymentMethod; label: string }> = [
+  { value: PaymentMethod.CASH, label: "Efectivo" },
+  { value: PaymentMethod.POSTNET, label: "Posnet" },
+  { value: PaymentMethod.QR, label: "QR" },
+  { value: PaymentMethod.BANK_TRANSFER, label: "Transferencia" },
+];
+
 function sanitizeGym(value: string) {
   const normalized = value.trim().toLowerCase();
   if (!normalized) return "main";
@@ -122,6 +154,24 @@ function toSlug(value: string) {
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+function getPlanLabel(planId: string) {
+  const normalized = planId.trim().toUpperCase();
+  if (normalized === "MONTHLY") return "Mensual";
+  if (normalized === "QUARTERLY") return "Trimestral";
+  if (normalized === "YEARLY") return "Anual";
+  return planId;
+}
+
+const PLAN_STATS_SKELETON: Array<{ key: string; label: string }> = [
+  { key: "MONTHLY", label: "Mensual" },
+  { key: "QUARTERLY", label: "Trimestral" },
+  { key: "YEARLY", label: "Anual" },
+];
+
+function getPlanMetricCount(source: Record<string, number>, planKey: string) {
+  return source[planKey] ?? source[getPlanLabel(planKey)] ?? 0;
 }
 
 function parseLines(value: string) {
@@ -150,24 +200,42 @@ function isPrivateOrLocalHost(hostname: string) {
 
 export default function AdminDashboardClient() {
   const router = useRouter();
-  const session = useMemo(() => getSession(), []);
+  const [session, setSession] = useState<SessionUser | null>(null);
+  const [isSessionReady, setIsSessionReady] = useState(false);
   const [activeTab, setActiveTab] = useState<DashboardTab>("stats");
   const [isBootLoading, setIsBootLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [statsRange, setStatsRange] = useState<AdminRange>("snapshot");
 
-  const [statsRange, setStatsRange] = useState<AdminRange>("month");
   const [stats, setStats] = useState<AdminStatsResponse | null>(null);
   const [site, setSite] = useState<AdminSiteSettings>(EMPTY_SITE);
   const [trainers, setTrainers] = useState<AdminTrainer[]>([]);
   const [activities, setActivities] = useState<AdminActivity[]>([]);
   const [benefits, setBenefits] = useState<AdminBenefit[]>([]);
   const [plans, setPlans] = useState<AdminPlan[]>([]);
+  const [branches, setBranches] = useState<AdminBranch[]>([]);
+  const [counterStudents, setCounterStudents] = useState<AdminCounterPaymentStudent[]>([]);
+  const [counterSearchTerm, setCounterSearchTerm] = useState("");
+  const [counterSelectedUserUuid, setCounterSelectedUserUuid] = useState("");
+  const [counterPlanId, setCounterPlanId] = useState<PlanType>(PlanType.MONTHLY);
+  const [counterPaymentMethod, setCounterPaymentMethod] = useState<PaymentMethod>(PaymentMethod.CASH);
+  const [isCounterSearching, setIsCounterSearching] = useState(false);
   const [newTrainer, setNewTrainer] = useState<Omit<AdminTrainer, "id">>(EMPTY_TRAINER);
   const [newActivity, setNewActivity] = useState<Omit<AdminActivity, "id">>(EMPTY_ACTIVITY);
   const [newBenefit, setNewBenefit] = useState<Omit<AdminBenefit, "id">>(EMPTY_BENEFIT);
   const [newPlan, setNewPlan] = useState<AdminPlan>(EMPTY_PLAN);
+  const [newPlanFeatureInput, setNewPlanFeatureInput] = useState("");
+  const [planFeatureInputById, setPlanFeatureInputById] = useState<Record<string, string>>({});
+  const [newActivityTrainerCandidate, setNewActivityTrainerCandidate] = useState("");
+  const [activityTrainerCandidateById, setActivityTrainerCandidateById] = useState<Record<string, string>>({});
+  const [newBranch, setNewBranch] = useState<Omit<AdminBranch, "id">>({
+    code: "main",
+    name: "",
+    address: "",
+    active: true,
+  });
 
   const [gym, setGym] = useState("main");
   const [qrPayload, setQrPayload] = useState<AdminCheckInQrResponse | null>(null);
@@ -181,6 +249,7 @@ export default function AdminDashboardClient() {
   }, []);
 
   const runGuard = () => {
+    if (!isSessionReady) return false;
     if (!session) {
       router.replace("/login?origin=login_manual&next=/admin/dashboard");
       return false;
@@ -197,7 +266,7 @@ export default function AdminDashboardClient() {
     setNotice(null);
   };
 
-  const loadStats = async (range: AdminRange) => {
+  const loadStats = async (range: AdminRange = statsRange) => {
     if (!session) return;
     const result = await fetchAdminStats(session.accessToken, range);
     setStats(result);
@@ -220,7 +289,7 @@ export default function AdminDashboardClient() {
     setIsBootLoading(true);
     clearMessages();
     try {
-      const [statsResponse, siteResponse, trainersResponse, activitiesResponse, benefitsResponse, plansResponse] =
+      const [statsResponse, siteResponse, trainersResponse, activitiesResponse, benefitsResponse, plansResponse, branchesResponse] =
         await Promise.all([
           fetchAdminStats(session.accessToken, statsRange),
           fetchAdminSiteSettings(session.accessToken),
@@ -228,6 +297,7 @@ export default function AdminDashboardClient() {
           fetchAdminActivities(session.accessToken),
           fetchAdminBenefits(session.accessToken),
           fetchAdminPlans(session.accessToken),
+          fetchAdminBranches(session.accessToken),
         ]);
       setStats(statsResponse);
       setSite(siteResponse);
@@ -235,7 +305,10 @@ export default function AdminDashboardClient() {
       setActivities(activitiesResponse);
       setBenefits(benefitsResponse);
       setPlans(plansResponse);
-      await loadQr("main");
+      const sortedBranches = branchesResponse.sort((a, b) => a.name.localeCompare(b.name, "es"));
+      setBranches(sortedBranches);
+      const initialBranch = sortedBranches.find((item) => item.active)?.code ?? "main";
+      await loadQr(initialBranch);
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : "No se pudo cargar el dashboard.";
       if (message.includes("sesión expiró")) {
@@ -249,10 +322,21 @@ export default function AdminDashboardClient() {
   };
 
   useEffect(() => {
+    const syncSession = () => {
+      setSession(getSession());
+      setIsSessionReady(true);
+    };
+    syncSession();
+    window.addEventListener("auth-session-changed", syncSession);
+    return () => window.removeEventListener("auth-session-changed", syncSession);
+  }, []);
+
+  useEffect(() => {
+    if (!isSessionReady) return;
     if (!runGuard()) return;
     loadAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isSessionReady, session?.accessToken, session?.role]);
 
   const withSaving = async (work: () => Promise<void>, successMessage: string) => {
     if (!runGuard()) return;
@@ -328,11 +412,12 @@ export default function AdminDashboardClient() {
       if (!session) return;
       const payload = {
         ...newActivity,
-        slug: newActivity.slug || toSlug(newActivity.name),
+        slug: toSlug(newActivity.name),
       };
       const created = await createAdminActivity(session.accessToken, payload);
       setActivities((prev) => [created, ...prev]);
       setNewActivity(EMPTY_ACTIVITY);
+      setNewActivityTrainerCandidate("");
     }, "Actividad creada.");
   };
 
@@ -340,7 +425,7 @@ export default function AdminDashboardClient() {
     await withSaving(async () => {
       if (!session) return;
       const updated = await updateAdminActivity(session.accessToken, activity.id, {
-        slug: activity.slug,
+        slug: toSlug(activity.name),
         name: activity.name,
         shortDescription: activity.shortDescription,
         description: activity.description,
@@ -363,7 +448,55 @@ export default function AdminDashboardClient() {
       if (!session) return;
       await deleteAdminActivity(session.accessToken, activityId);
       setActivities((prev) => prev.filter((item) => item.id !== activityId));
+      setActivityTrainerCandidateById((prev) => {
+        const { [activityId]: _, ...next } = prev;
+        return next;
+      });
     }, "Actividad eliminada.");
+  };
+
+  const addTrainerToNewActivity = () => {
+    const candidate = newActivityTrainerCandidate.trim();
+    if (!candidate) return;
+    if (newActivity.trainerIds.includes(candidate)) return;
+    setNewActivity((prev) => ({
+      ...prev,
+      trainerIds: [...prev.trainerIds, candidate],
+    }));
+    setError(null);
+    setNewActivityTrainerCandidate("");
+  };
+
+  const removeTrainerFromNewActivity = (trainerId: string) => {
+    setNewActivity((prev) => ({ ...prev, trainerIds: prev.trainerIds.filter((id) => id !== trainerId) }));
+  };
+
+  const addTrainerToActivity = (activityId: string) => {
+    const candidate = (activityTrainerCandidateById[activityId] ?? "").trim();
+    if (!candidate) return;
+    const currentActivity = activities.find((item) => item.id === activityId);
+    if (!currentActivity) return;
+    if (currentActivity.trainerIds.includes(candidate)) return;
+    setActivities((prev) =>
+      prev.map((item) =>
+        item.id !== activityId
+          ? item
+          : {
+              ...item,
+              trainerIds: [...item.trainerIds, candidate],
+            },
+      ),
+    );
+    setError(null);
+    setActivityTrainerCandidateById((prev) => ({ ...prev, [activityId]: "" }));
+  };
+
+  const removeTrainerFromActivity = (activityId: string, trainerId: string) => {
+    setActivities((prev) =>
+      prev.map((item) =>
+        item.id === activityId ? { ...item, trainerIds: item.trainerIds.filter((id) => id !== trainerId) } : item,
+      ),
+    );
   };
 
   const createBenefitHandler = async () => {
@@ -397,6 +530,39 @@ export default function AdminDashboardClient() {
     }, "Beneficio eliminado.");
   };
 
+  const addNewPlanFeature = () => {
+    const nextFeature = newPlanFeatureInput.trim();
+    if (!nextFeature) return;
+    setNewPlan((prev) => ({
+      ...prev,
+      features: prev.features.includes(nextFeature) ? prev.features : [...prev.features, nextFeature],
+    }));
+    setNewPlanFeatureInput("");
+  };
+
+  const removeNewPlanFeature = (feature: string) => {
+    setNewPlan((prev) => ({ ...prev, features: prev.features.filter((item) => item !== feature) }));
+  };
+
+  const addPlanFeature = (planId: string) => {
+    const nextFeature = (planFeatureInputById[planId] ?? "").trim();
+    if (!nextFeature) return;
+    setPlans((prev) =>
+      prev.map((item) =>
+        item.id === planId
+          ? { ...item, features: item.features.includes(nextFeature) ? item.features : [...item.features, nextFeature] }
+          : item,
+      ),
+    );
+    setPlanFeatureInputById((prev) => ({ ...prev, [planId]: "" }));
+  };
+
+  const removePlanFeature = (planId: string, feature: string) => {
+    setPlans((prev) =>
+      prev.map((item) => (item.id === planId ? { ...item, features: item.features.filter((entry) => entry !== feature) } : item)),
+    );
+  };
+
   const upsertPlanHandler = async (plan: AdminPlan, successMessage: string) => {
     await withSaving(async () => {
       if (!session) return;
@@ -421,16 +587,56 @@ export default function AdminDashboardClient() {
     }, "Plan dado de baja.");
   };
 
-  const refreshStatsHandler = async (range: AdminRange) => {
+  const refreshStatsHandler = async () => {
     await withSaving(async () => {
-      await loadStats(range);
+      await loadStats(statsRange);
     }, "Estadísticas actualizadas.");
   };
 
-  const regenerateQr = async () => {
+  const onStatsRangeChange = async (nextRange: AdminRange) => {
+    setStatsRange(nextRange);
     await withSaving(async () => {
-      await loadQr(sanitizeGym(gym));
-    }, "QR generado.");
+      await loadStats(nextRange);
+    }, `Estadísticas de ${STATS_RANGE_OPTIONS.find((item) => item.value === nextRange)?.label ?? "período"} actualizadas.`);
+  };
+
+  const createBranchHandler = async () => {
+    await withSaving(async () => {
+      if (!session) return;
+      const created = await createAdminBranch(session.accessToken, {
+        code: sanitizeGym(newBranch.code),
+        name: newBranch.name.trim(),
+        address: newBranch.address.trim(),
+        active: newBranch.active,
+      });
+      setBranches((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name, "es")));
+      setNewBranch({ code: "main", name: "", address: "", active: true });
+    }, "Sede creada.");
+  };
+
+  const saveBranchHandler = async (branch: AdminBranch) => {
+    await withSaving(async () => {
+      if (!session) return;
+      const updated = await updateAdminBranch(session.accessToken, branch.id, {
+        code: sanitizeGym(branch.code),
+        name: branch.name,
+        address: branch.address,
+        active: branch.active,
+      });
+      if (!updated) return;
+      setBranches((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+    }, "Sede actualizada.");
+  };
+
+  const deleteBranchHandler = async (branchId: string) => {
+    await withSaving(async () => {
+      if (!session) return;
+      await deleteAdminBranch(session.accessToken, branchId);
+      setBranches((prev) => prev.filter((item) => item.id !== branchId));
+      const next = branches.find((item) => item.id !== branchId && item.active)?.code ?? "main";
+      setGym(next);
+      await loadQr(next);
+    }, "Sede dada de baja.");
   };
 
   const copyCheckInUrl = async () => {
@@ -443,10 +649,71 @@ export default function AdminDashboardClient() {
     }
   };
 
+  const searchCounterStudentsHandler = async () => {
+    if (!runGuard() || !session) return;
+    const normalized = counterSearchTerm.trim();
+    if (normalized.length < 2) {
+      setCounterStudents([]);
+      setCounterSelectedUserUuid("");
+      setError("Ingresá al menos 2 caracteres para buscar al alumno.");
+      return;
+    }
+
+    setIsCounterSearching(true);
+    clearMessages();
+    try {
+      const result = await searchAdminCounterPaymentStudents(session.accessToken, normalized);
+      setCounterStudents(result.items);
+      if (result.items.length === 0) {
+        setCounterSelectedUserUuid("");
+        setNotice("No encontramos alumnos con esa búsqueda.");
+        return;
+      }
+      setCounterSelectedUserUuid((prev) => (result.items.some((item) => item.uuid === prev) ? prev : result.items[0].uuid));
+      setNotice(`${result.items.length} alumno(s) encontrado(s).`);
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : "No se pudo buscar alumnos.";
+      if (message.includes("sesión expiró")) {
+        router.replace("/login?origin=login_manual&next=/admin/dashboard");
+        return;
+      }
+      setError(message);
+    } finally {
+      setIsCounterSearching(false);
+    }
+  };
+
+  const registerCounterPaymentHandler = async () => {
+    await withSaving(async () => {
+      if (!session) return;
+      if (!counterSelectedUserUuid) {
+        throw new Error("Seleccioná un alumno para registrar el pago.");
+      }
+      await registerAdminCounterPayment(session.accessToken, {
+        userUuid: counterSelectedUserUuid,
+        planId: counterPlanId,
+        paymentMethod: counterPaymentMethod,
+      });
+
+      await loadStats(statsRange);
+      await searchCounterStudentsHandler();
+    }, "Pago físico registrado.");
+  };
+
+  if (!isSessionReady) {
+    return (
+      <main className={styles.page}>
+        <section className={styles.sectionCard}>
+          <p>Cargando sesión...</p>
+        </section>
+      </main>
+    );
+  }
+
   if (!session) {
     return (
       <main className={styles.page}>
-        <section className={styles.card}>
+        <section className={styles.sectionCard}>
           <p>Redirigiendo a login...</p>
         </section>
       </main>
@@ -454,6 +721,8 @@ export default function AdminDashboardClient() {
   }
 
   const trainerNameById = new Map(trainers.map((trainer) => [trainer.id, trainer.name]));
+  const selectedCounterStudent =
+    counterStudents.find((student) => student.uuid === counterSelectedUserUuid) ?? null;
 
   return (
     <main className={styles.page}>
@@ -464,14 +733,6 @@ export default function AdminDashboardClient() {
             <h1>Gestión completa de gimnasio</h1>
             <p className={styles.headerSub}>Usuario: {session.email}</p>
           </div>
-          <div className={styles.headerActions}>
-            <Link href="/" className={styles.ghostButton}>
-              Ver sitio
-            </Link>
-            <button type="button" className={styles.logoutBtn} onClick={onLogout}>
-              Cerrar sesión
-            </button>
-          </div>
         </header>
 
         {session.role !== UserRole.ADMIN ? (
@@ -480,20 +741,25 @@ export default function AdminDashboardClient() {
             <Link href="/">Volver al inicio</Link>
           </div>
         ) : (
-          <>
-            <nav className={styles.tabBar}>
-              {TABS.map((tab) => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`${styles.tab} ${activeTab === tab.id ? styles.tabActive : ""}`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </nav>
-
+          <div className={styles.workspace}>
+            <aside className={styles.sideMenu}>
+              <nav className={styles.tabBar} aria-label="Secciones del dashboard">
+                {TABS.map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`${styles.tab} ${activeTab === tab.id ? styles.tabActive : ""}`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </nav>
+              <button type="button" className={styles.logoutBtn} onClick={onLogout}>
+                Cerrar sesión
+              </button>
+            </aside>
+            <div className={styles.mainPane}>
             {(error || notice) && (
               <div className={styles.messageStack}>
                 {error && <p className={styles.errorText}>{error}</p>}
@@ -510,16 +776,14 @@ export default function AdminDashboardClient() {
                 {activeTab === "stats" && (
                   <section className={styles.sectionCard}>
                     <div className={styles.sectionHead}>
-                      <h2>Estadísticas de usuarios y pagos</h2>
+                      <h2>Estadísticas actuales</h2>
                       <div className={styles.inlineActions}>
                         <select
                           value={statsRange}
-                          onChange={(event) => {
-                            const value = event.target.value as AdminRange;
-                            setStatsRange(value);
-                          }}
+                          onChange={(event) => onStatsRangeChange(event.target.value as AdminRange)}
+                          disabled={isSaving}
                         >
-                          {RANGE_OPTIONS.map((option) => (
+                          {STATS_RANGE_OPTIONS.map((option) => (
                             <option key={option.value} value={option.value}>
                               {option.label}
                             </option>
@@ -527,7 +791,7 @@ export default function AdminDashboardClient() {
                         </select>
                         <button
                           type="button"
-                          onClick={() => refreshStatsHandler(statsRange)}
+                          onClick={() => refreshStatsHandler()}
                           disabled={isSaving}
                           className={styles.primaryButton}
                         >
@@ -538,56 +802,60 @@ export default function AdminDashboardClient() {
 
                     {stats ? (
                       <>
-                        <div className={styles.metricGrid}>
+                        <div className={styles.metricRow}>
                           <article className={styles.metricCard}>
                             <span>Total usuarios</span>
                             <strong>{stats.totals.users}</strong>
                           </article>
                           <article className={styles.metricCard}>
-                            <span>Altas en período</span>
-                            <strong>{stats.totals.newUsers}</strong>
-                          </article>
-                          <article className={styles.metricCard}>
                             <span>Usuarios activos</span>
                             <strong>{stats.totals.activeUsers}</strong>
                           </article>
+                        </div>
+                        <div className={styles.metricRow}>
                           <article className={styles.metricCard}>
                             <span>Suscripciones activas</span>
                             <strong>{stats.totals.activeSubscriptions}</strong>
                           </article>
                           <article className={styles.metricCard}>
-                            <span>Pago único activo</span>
+                            <span>Pagos únicos</span>
                             <strong>{stats.totals.oneTimePaidUsers}</strong>
                           </article>
-                          <article className={styles.metricCard}>
-                            <span>Dejaron de pagar</span>
-                            <strong>{stats.totals.stoppedPaying}</strong>
-                          </article>
                         </div>
+                        {stats.range !== "snapshot" && (
+                          <div className={styles.metricRow}>
+                            <article className={styles.metricCard}>
+                              <span>Dejaron de pagar</span>
+                              <strong>{stats.period.usersStoppedPaying}</strong>
+                            </article>
+                            <article className={styles.metricCard}>
+                              <span>Bajas de suscripción</span>
+                              <strong>{stats.period.usersCancelled}</strong>
+                            </article>
+                          </div>
+                        )}
 
                         <div className={styles.splitGrid}>
                           <article className={styles.subCard}>
-                            <h3>Suscripciones por plan</h3>
+                            <h3>Suscriptos por plan</h3>
                             <ul>
-                              {Object.entries(stats.subscriptionsByPlan).map(([plan, count]) => (
-                                <li key={plan}>
-                                  <span>{plan}</span>
-                                  <strong>{count}</strong>
+                              {PLAN_STATS_SKELETON.map((plan) => (
+                                <li key={`sub-${plan.key}`}>
+                                  <span>{plan.label}</span>
+                                  <strong>{getPlanMetricCount(stats.subscriptionsByPlan, plan.key)}</strong>
                                 </li>
                               ))}
-                              {Object.keys(stats.subscriptionsByPlan).length === 0 && <li>Sin datos en el período.</li>}
                             </ul>
                           </article>
                           <article className={styles.subCard}>
-                            <h3>Pagos únicos por monto</h3>
+                            <h3>Pagos únicos por plan</h3>
                             <ul>
-                              {Object.entries(stats.oneTimeByAmount).map(([amount, count]) => (
-                                <li key={amount}>
-                                  <span>{amount}</span>
-                                  <strong>{count}</strong>
+                              {PLAN_STATS_SKELETON.map((plan) => (
+                                <li key={`otp-${plan.key}`}>
+                                  <span>{plan.label}</span>
+                                  <strong>{getPlanMetricCount(stats.oneTimeByPlan, plan.key)}</strong>
                                 </li>
                               ))}
-                              {Object.keys(stats.oneTimeByAmount).length === 0 && <li>Sin pagos únicos.</li>}
                             </ul>
                           </article>
                         </div>
@@ -595,6 +863,103 @@ export default function AdminDashboardClient() {
                     ) : (
                       <p>No hay estadísticas disponibles.</p>
                     )}
+                  </section>
+                )}
+
+                {activeTab === "counterPayments" && (
+                  <section className={styles.sectionCard}>
+                    <div className={styles.sectionHead}>
+                      <h2>Registro de pagos únicos en mostrador</h2>
+                    </div>
+                    <p className={styles.muted}>
+                      Buscá el alumno ya registrado, elegí período y forma de pago para registrar el cobro presencial.
+                    </p>
+
+                    <article className={styles.editorCard}>
+                      <h3>1. Buscar alumno</h3>
+                      <div className={styles.rowInline}>
+                        <input
+                          value={counterSearchTerm}
+                          placeholder="Nombre, apellido, email o teléfono"
+                          onChange={(event) => setCounterSearchTerm(event.target.value)}
+                        />
+                        <button
+                          type="button"
+                          className={styles.primaryButton}
+                          onClick={searchCounterStudentsHandler}
+                          disabled={isCounterSearching || isSaving}
+                        >
+                          {isCounterSearching ? "Buscando..." : "Buscar"}
+                        </button>
+                      </div>
+
+                      {counterStudents.length > 0 ? (
+                        <div className={styles.formGrid2}>
+                          <label className={styles.span2}>
+                            Alumno
+                            <select
+                              value={counterSelectedUserUuid}
+                              onChange={(event) => setCounterSelectedUserUuid(event.target.value)}
+                            >
+                              {counterStudents.map((student) => (
+                                <option key={student.uuid} value={student.uuid}>
+                                  {student.fullName} · {student.email}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                        </div>
+                      ) : (
+                        <p className={styles.muted}>Sin resultados de búsqueda.</p>
+                      )}
+                    </article>
+
+                    <article className={styles.editorCard}>
+                      <h3>2. Registrar pago</h3>
+                      <div className={styles.formGrid2}>
+                        <label>
+                          Período a abonar
+                          <select value={counterPlanId} onChange={(event) => setCounterPlanId(event.target.value as PlanType)}>
+                            <option value={PlanType.MONTHLY}>Mensual</option>
+                            <option value={PlanType.QUARTERLY}>Trimestral</option>
+                            <option value={PlanType.YEARLY}>Anual</option>
+                          </select>
+                        </label>
+                        <label>
+                          Medio de pago
+                          <select
+                            value={counterPaymentMethod}
+                            onChange={(event) => setCounterPaymentMethod(event.target.value as PaymentMethod)}
+                          >
+                            {COUNTER_PAYMENT_METHOD_OPTIONS.map((method) => (
+                              <option key={method.value} value={method.value}>
+                                {method.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      </div>
+
+                      {selectedCounterStudent && (
+                        <p className={styles.muted}>
+                          Alumno seleccionado: <strong>{selectedCounterStudent.fullName}</strong> · {selectedCounterStudent.email}
+                          {selectedCounterStudent.hasActiveSubscription && selectedCounterStudent.activeSubscriptionEndDate
+                            ? ` · Suscripción activa hasta ${new Date(selectedCounterStudent.activeSubscriptionEndDate).toLocaleDateString("es-AR")}`
+                            : ""}
+                        </p>
+                      )}
+
+                      <div className={styles.rowEnd}>
+                        <button
+                          type="button"
+                          className={styles.primaryButton}
+                          disabled={isSaving || !counterSelectedUserUuid}
+                          onClick={registerCounterPaymentHandler}
+                        >
+                          {isSaving ? "Registrando..." : "Registrar pago único"}
+                        </button>
+                      </div>
+                    </article>
                   </section>
                 )}
 
@@ -817,24 +1182,23 @@ export default function AdminDashboardClient() {
                       <div className={styles.formGrid2}>
                         <label>
                           Nombre
-                          <input
-                            value={newActivity.name}
-                            onChange={(event) => {
-                              const value = event.target.value;
-                              setNewActivity((prev) => ({
-                                ...prev,
-                                name: value,
-                                slug: prev.slug ? prev.slug : toSlug(value),
-                              }));
-                            }}
-                          />
+                              <input
+                                value={newActivity.name}
+                                onChange={(event) => {
+                                  const value = event.target.value;
+                                  setNewActivity((prev) => ({
+                                    ...prev,
+                                    name: value,
+                                    slug: toSlug(value),
+                                  }));
+                                  setNewActivityTrainerCandidate("");
+                                }}
+                              />
                         </label>
                         <label>
-                          Slug
-                          <input
-                            value={newActivity.slug}
-                            onChange={(event) => setNewActivity((prev) => ({ ...prev, slug: toSlug(event.target.value) }))}
-                          />
+                          Slug (interno, no editable)
+                          <input value={newActivity.name ? toSlug(newActivity.name) : ""} readOnly />
+                          <span className={styles.muted}>Se genera automáticamente desde el nombre.</span>
                         </label>
                         <label className={styles.span2}>
                           Descripción corta
@@ -898,29 +1262,44 @@ export default function AdminDashboardClient() {
                             }
                           />
                         </label>
-                        <fieldset className={styles.span2}>
-                          <legend>Profesores asignados</legend>
-                          <div className={styles.inlineCheckboxes}>
-                            {trainers.map((trainer) => (
-                              <label key={trainer.id} className={styles.checkboxField}>
-                                <input
-                                  type="checkbox"
-                                  checked={newActivity.trainerIds.includes(trainer.id)}
-                                  onChange={(event) =>
-                                    setNewActivity((prev) => ({
-                                      ...prev,
-                                      trainerIds: event.target.checked
-                                        ? [...prev.trainerIds, trainer.id]
-                                        : prev.trainerIds.filter((id) => id !== trainer.id),
-                                    }))
-                                  }
-                                />
-                                {trainer.name}
-                              </label>
-                            ))}
-                            {trainers.length === 0 && <p className={styles.muted}>No hay profesores cargados.</p>}
+                        <label className={styles.span2}>
+                          Profesores asignados
+                            <div className={styles.listEditor}>
+                              <div className={styles.listEditorInputRow}>
+                                <select
+                                  value={newActivityTrainerCandidate}
+                                  onChange={(event) => setNewActivityTrainerCandidate(event.target.value)}
+                                >
+                                  <option value="">Seleccionar profesor</option>
+                                  {trainers
+                                    .filter((trainer) => !newActivity.trainerIds.includes(trainer.id))
+                                    .map((trainer) => (
+                                      <option key={trainer.id} value={trainer.id}>
+                                        {trainer.name}
+                                      </option>
+                                    ))}
+                                </select>
+                                <button type="button" className={styles.ghostButton} onClick={addTrainerToNewActivity}>
+                                  Agregar
+                                </button>
+                            </div>
+                            <ul className={styles.listEditorList}>
+                              {newActivity.trainerIds.map((trainerId) => (
+                                <li key={`new-activity-${trainerId}`}>
+                                  <span>{trainerNameById.get(trainerId) ?? "Profesor sin nombre"}</span>
+                                  <button
+                                    type="button"
+                                    className={styles.listEditorRemove}
+                                    onClick={() => removeTrainerFromNewActivity(trainerId)}
+                                  >
+                                    Quitar
+                                  </button>
+                                </li>
+                              ))}
+                              {newActivity.trainerIds.length === 0 && <li className={styles.muted}>Sin profesores asignados.</li>}
+                            </ul>
                           </div>
-                        </fieldset>
+                        </label>
                         <label className={styles.checkboxField}>
                           <input
                             type="checkbox"
@@ -950,27 +1329,20 @@ export default function AdminDashboardClient() {
                               Nombre
                               <input
                                 value={activity.name}
-                                onChange={(event) =>
+                                onChange={(event) => {
+                                  const value = event.target.value;
                                   setActivities((prev) =>
                                     prev.map((item) =>
-                                      item.id === activity.id ? { ...item, name: event.target.value } : item,
+                                      item.id === activity.id ? { ...item, name: value, slug: toSlug(value) } : item,
                                     ),
-                                  )
-                                }
+                                  );
+                                  setActivityTrainerCandidateById((prev) => ({ ...prev, [activity.id]: "" }));
+                                }}
                               />
                             </label>
                             <label>
-                              Slug
-                              <input
-                                value={activity.slug}
-                                onChange={(event) =>
-                                  setActivities((prev) =>
-                                    prev.map((item) =>
-                                      item.id === activity.id ? { ...item, slug: toSlug(event.target.value) } : item,
-                                    ),
-                                  )
-                                }
-                              />
+                              Slug (interno, no editable)
+                              <input value={toSlug(activity.name)} readOnly />
                             </label>
                             <label className={styles.span2}>
                               Descripción corta
@@ -1082,34 +1454,46 @@ export default function AdminDashboardClient() {
                                 }
                               />
                             </label>
-                            <fieldset className={styles.span2}>
-                              <legend>Profesores asignados</legend>
-                              <div className={styles.inlineCheckboxes}>
-                                {trainers.map((trainer) => (
-                                  <label key={trainer.id} className={styles.checkboxField}>
-                                    <input
-                                      type="checkbox"
-                                      checked={activity.trainerIds.includes(trainer.id)}
-                                      onChange={(event) =>
-                                        setActivities((prev) =>
-                                          prev.map((item) =>
-                                            item.id === activity.id
-                                              ? {
-                                                  ...item,
-                                                  trainerIds: event.target.checked
-                                                    ? [...item.trainerIds, trainer.id]
-                                                    : item.trainerIds.filter((id) => id !== trainer.id),
-                                                }
-                                              : item,
-                                          ),
-                                        )
-                                      }
-                                    />
-                                    {trainer.name}
-                                  </label>
-                                ))}
+                            <label className={styles.span2}>
+                              Profesores asignados
+                              <div className={styles.listEditor}>
+                                <div className={styles.listEditorInputRow}>
+                                  <select
+                                    value={activityTrainerCandidateById[activity.id] ?? ""}
+                                    onChange={(event) =>
+                                      setActivityTrainerCandidateById((prev) => ({ ...prev, [activity.id]: event.target.value }))
+                                    }
+                                  >
+                                    <option value="">Seleccionar profesor</option>
+                                    {trainers
+                                      .filter((trainer) => !activity.trainerIds.includes(trainer.id))
+                                      .map((trainer) => (
+                                        <option key={trainer.id} value={trainer.id}>
+                                          {trainer.name}
+                                        </option>
+                                      ))}
+                                  </select>
+                                  <button type="button" className={styles.ghostButton} onClick={() => addTrainerToActivity(activity.id)}>
+                                    Agregar
+                                  </button>
+                                </div>
+                                <ul className={styles.listEditorList}>
+                                  {activity.trainerIds.map((trainerId) => (
+                                    <li key={`${activity.id}-${trainerId}`}>
+                                      <span>{trainerNameById.get(trainerId) ?? "Profesor sin nombre"}</span>
+                                      <button
+                                        type="button"
+                                        className={styles.listEditorRemove}
+                                        onClick={() => removeTrainerFromActivity(activity.id, trainerId)}
+                                      >
+                                        Quitar
+                                      </button>
+                                    </li>
+                                  ))}
+                                  {activity.trainerIds.length === 0 && <li className={styles.muted}>Sin profesores asignados.</li>}
+                                </ul>
                               </div>
-                            </fieldset>
+                            </label>
                             <label className={styles.checkboxField}>
                               <input
                                 type="checkbox"
@@ -1170,10 +1554,16 @@ export default function AdminDashboardClient() {
                         </label>
                         <label>
                           Clave de ícono
-                          <input
+                          <select
                             value={newBenefit.iconKey}
                             onChange={(event) => setNewBenefit((prev) => ({ ...prev, iconKey: event.target.value }))}
-                          />
+                          >
+                            {BENEFIT_ICON_OPTIONS.map((iconKey) => (
+                              <option key={iconKey} value={iconKey}>
+                                {iconKey}
+                              </option>
+                            ))}
+                          </select>
                         </label>
                         <label className={styles.span2}>
                           Descripción
@@ -1191,6 +1581,7 @@ export default function AdminDashboardClient() {
                           />
                           Activo
                         </label>
+                        <p className={styles.muted}>Íconos disponibles: {BENEFIT_ICON_OPTIONS.join(", ")}</p>
                       </div>
                       <div className={styles.rowEnd}>
                         <button
@@ -1223,7 +1614,7 @@ export default function AdminDashboardClient() {
                             </label>
                             <label>
                               Clave de ícono
-                              <input
+                              <select
                                 value={benefit.iconKey}
                                 onChange={(event) =>
                                   setBenefits((prev) =>
@@ -1232,7 +1623,13 @@ export default function AdminDashboardClient() {
                                     ),
                                   )
                                 }
-                              />
+                              >
+                                {BENEFIT_ICON_OPTIONS.map((iconKey) => (
+                                  <option key={iconKey} value={iconKey}>
+                                    {iconKey}
+                                  </option>
+                                ))}
+                              </select>
                             </label>
                             <label className={styles.span2}>
                               Descripción
@@ -1367,12 +1764,34 @@ export default function AdminDashboardClient() {
                           Activo
                         </label>
                         <label className={styles.span2}>
-                          Features (uno por línea)
-                          <textarea
-                            rows={4}
-                            value={joinLines(newPlan.features)}
-                            onChange={(event) => setNewPlan((prev) => ({ ...prev, features: parseLines(event.target.value) }))}
-                          />
+                          Features del plan
+                          <div className={styles.listEditor}>
+                            <div className={styles.listEditorInputRow}>
+                              <input
+                                value={newPlanFeatureInput}
+                                placeholder="Agregar feature"
+                                onChange={(event) => setNewPlanFeatureInput(event.target.value)}
+                              />
+                              <button type="button" className={styles.ghostButton} onClick={addNewPlanFeature}>
+                                Agregar
+                              </button>
+                            </div>
+                            <ul className={styles.listEditorList}>
+                              {newPlan.features.map((feature) => (
+                                <li key={feature}>
+                                  <span>{feature}</span>
+                                  <button
+                                    type="button"
+                                    className={styles.listEditorRemove}
+                                    onClick={() => removeNewPlanFeature(feature)}
+                                  >
+                                    Quitar
+                                  </button>
+                                </li>
+                              ))}
+                              {newPlan.features.length === 0 && <li className={styles.muted}>Sin features cargados.</li>}
+                            </ul>
+                          </div>
                         </label>
                       </div>
                       <div className={styles.rowEnd}>
@@ -1497,18 +1916,36 @@ export default function AdminDashboardClient() {
                               Activo
                             </label>
                             <label className={styles.span2}>
-                              Features (uno por línea)
-                              <textarea
-                                rows={4}
-                                value={joinLines(plan.features)}
-                                onChange={(event) =>
-                                  setPlans((prev) =>
-                                    prev.map((item) =>
-                                      item.id === plan.id ? { ...item, features: parseLines(event.target.value) } : item,
-                                    ),
-                                  )
-                                }
-                              />
+                              Features del plan
+                              <div className={styles.listEditor}>
+                                <div className={styles.listEditorInputRow}>
+                                  <input
+                                    value={planFeatureInputById[plan.id] ?? ""}
+                                    placeholder="Agregar feature"
+                                    onChange={(event) =>
+                                      setPlanFeatureInputById((prev) => ({ ...prev, [plan.id]: event.target.value }))
+                                    }
+                                  />
+                                  <button type="button" className={styles.ghostButton} onClick={() => addPlanFeature(plan.id)}>
+                                    Agregar
+                                  </button>
+                                </div>
+                                <ul className={styles.listEditorList}>
+                                  {plan.features.map((feature) => (
+                                    <li key={`${plan.id}-${feature}`}>
+                                      <span>{feature}</span>
+                                      <button
+                                        type="button"
+                                        className={styles.listEditorRemove}
+                                        onClick={() => removePlanFeature(plan.id, feature)}
+                                      >
+                                        Quitar
+                                      </button>
+                                    </li>
+                                  ))}
+                                  {plan.features.length === 0 && <li className={styles.muted}>Sin features cargados.</li>}
+                                </ul>
+                              </div>
                             </label>
                           </div>
                           <div className={styles.rowEnd}>
@@ -1540,18 +1977,27 @@ export default function AdminDashboardClient() {
                     <div className={styles.sectionHead}>
                       <h2>QR Check-in del día</h2>
                     </div>
-                    <label htmlFor="gym">Sede (gym)</label>
+                    <label htmlFor="gym">Sede</label>
                     <div className={styles.rowInline}>
-                      <input
+                      <select
                         id="gym"
-                        type="text"
                         value={gym}
-                        onChange={(event) => setGym(event.target.value)}
-                        placeholder="main"
-                      />
-                      <button type="button" className={styles.primaryButton} onClick={regenerateQr} disabled={isQrLoading || isSaving}>
-                        {isQrLoading ? "Generando..." : "Generar QR"}
-                      </button>
+                        onChange={async (event) => {
+                          const next = sanitizeGym(event.target.value);
+                          setGym(next);
+                          await loadQr(next);
+                        }}
+                      >
+                        {branches
+                          .filter((item) => item.active)
+                          .map((branch) => (
+                          <option key={branch.id} value={branch.code}>
+                            {branch.name} ({branch.code})
+                          </option>
+                          ))}
+                        {branches.filter((item) => item.active).length === 0 && <option value="main">main</option>}
+                      </select>
+                      {isQrLoading ? <span className={styles.muted}>Actualizando QR...</span> : null}
                     </div>
 
                     {qrPayload && (
@@ -1575,9 +2021,144 @@ export default function AdminDashboardClient() {
                     )}
                   </section>
                 )}
+
+                {activeTab === "branches" && (
+                  <section className={styles.sectionCard}>
+                    <div className={styles.sectionHead}>
+                      <h2>Sedes</h2>
+                    </div>
+                    <article className={styles.editorCard}>
+                      <h3>Alta de sede</h3>
+                      <div className={styles.formGrid2}>
+                        <label>
+                          Código (ej: main, centro)
+                          <input
+                            value={newBranch.code}
+                            onChange={(event) =>
+                              setNewBranch((prev) => ({ ...prev, code: sanitizeGym(event.target.value) }))
+                            }
+                          />
+                        </label>
+                        <label>
+                          Nombre
+                          <input
+                            value={newBranch.name}
+                            onChange={(event) => setNewBranch((prev) => ({ ...prev, name: event.target.value }))}
+                          />
+                        </label>
+                        <label className={styles.span2}>
+                          Dirección
+                          <input
+                            value={newBranch.address}
+                            onChange={(event) => setNewBranch((prev) => ({ ...prev, address: event.target.value }))}
+                          />
+                        </label>
+                        <label className={styles.checkboxField}>
+                          <input
+                            type="checkbox"
+                            checked={newBranch.active}
+                            onChange={(event) => setNewBranch((prev) => ({ ...prev, active: event.target.checked }))}
+                          />
+                          Activa
+                        </label>
+                      </div>
+                      <div className={styles.rowEnd}>
+                        <button
+                          type="button"
+                          className={styles.primaryButton}
+                          disabled={isSaving || !newBranch.code.trim() || !newBranch.name.trim()}
+                          onClick={createBranchHandler}
+                        >
+                          Crear sede
+                        </button>
+                      </div>
+                    </article>
+
+                    <div className={styles.stack}>
+                      {branches.map((branch) => (
+                        <article key={branch.id} className={styles.editorCard}>
+                          <div className={styles.formGrid2}>
+                            <label>
+                              Código
+                              <input
+                                value={branch.code}
+                                onChange={(event) =>
+                                  setBranches((prev) =>
+                                    prev.map((item) =>
+                                      item.id === branch.id ? { ...item, code: sanitizeGym(event.target.value) } : item,
+                                    ),
+                                  )
+                                }
+                              />
+                            </label>
+                            <label>
+                              Nombre
+                              <input
+                                value={branch.name}
+                                onChange={(event) =>
+                                  setBranches((prev) =>
+                                    prev.map((item) =>
+                                      item.id === branch.id ? { ...item, name: event.target.value } : item,
+                                    ),
+                                  )
+                                }
+                              />
+                            </label>
+                            <label className={styles.span2}>
+                              Dirección
+                              <input
+                                value={branch.address}
+                                onChange={(event) =>
+                                  setBranches((prev) =>
+                                    prev.map((item) =>
+                                      item.id === branch.id ? { ...item, address: event.target.value } : item,
+                                    ),
+                                  )
+                                }
+                              />
+                            </label>
+                            <label className={styles.checkboxField}>
+                              <input
+                                type="checkbox"
+                                checked={branch.active}
+                                onChange={(event) =>
+                                  setBranches((prev) =>
+                                    prev.map((item) =>
+                                      item.id === branch.id ? { ...item, active: event.target.checked } : item,
+                                    ),
+                                  )
+                                }
+                              />
+                              Activa
+                            </label>
+                          </div>
+                          <div className={styles.rowEnd}>
+                            <button
+                              type="button"
+                              className={styles.primaryButton}
+                              disabled={isSaving}
+                              onClick={() => saveBranchHandler(branch)}
+                            >
+                              Guardar
+                            </button>
+                            <button
+                              type="button"
+                              className={styles.dangerButton}
+                              disabled={isSaving}
+                              onClick={() => deleteBranchHandler(branch.id)}
+                            >
+                              Dar de baja
+                            </button>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  </section>
+                )}
               </>
             )}
-          </>
+            </div>
+          </div>
         )}
       </section>
     </main>

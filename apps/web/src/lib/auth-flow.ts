@@ -28,6 +28,7 @@ export type SessionUser = {
 export type LoginPayload = ILoginRequest;
 
 export type RegisterPayload = IRegisterRequest;
+export type RegisterResponse = { message: string };
 export type PlanRequestMode = "scheduled_change" | "deferred_activation";
 
 export type BillingContext = {
@@ -207,22 +208,32 @@ export type AdminCheckInQrResponse = {
   generatedAt: string;
 };
 
-export type AdminRange = "week" | "month" | "quarter" | "year";
+export type AdminRange = "week" | "month" | "quarter" | "year" | "snapshot";
 
 export type AdminStatsResponse = {
   range: AdminRange | string;
   from: string;
   totals: {
     users: number;
-    newUsers: number;
     activeUsers: number;
     activeSubscriptions: number;
     oneTimePaidUsers: number;
-    stoppedPaying: number;
-    cancelled: number;
+  };
+  period: {
+    usersStoppedPaying: number;
+    usersCancelled: number;
   };
   subscriptionsByPlan: Record<string, number>;
+  oneTimeByPlan: Record<string, number>;
   oneTimeByAmount: Record<string, number>;
+};
+
+export type AdminBranch = {
+  id: string;
+  code: string;
+  name: string;
+  address: string;
+  active: boolean;
 };
 
 export type AdminSiteSettings = {
@@ -278,6 +289,42 @@ export type AdminPlan = {
   highlight: boolean;
   badge?: string | null;
   active: boolean;
+};
+
+export type AdminCounterPaymentStudent = {
+  uuid: string;
+  fullName: string;
+  email: string;
+  phone: string | null;
+  status: MembershipStatus;
+  hasActiveSubscription: boolean;
+  activeSubscriptionEndDate: string | null;
+  latestOneTimePaidAt: string | null;
+};
+
+export type AdminCounterPaymentSearchResponse = {
+  items: AdminCounterPaymentStudent[];
+};
+
+export type AdminRegisterCounterPaymentPayload = {
+  userUuid: string;
+  planId: PlanType;
+  paymentMethod: PaymentMethod;
+};
+
+export type AdminRegisterCounterPaymentResponse = {
+  message: string;
+  invoice: {
+    uuid: string;
+    userUuid: string;
+    studentName: string;
+    studentEmail: string;
+    planId: PlanType;
+    amount: number;
+    currency: CurrencyCode;
+    paymentMethod: PaymentMethod;
+    paidAt: string;
+  };
 };
 
 const VALID_PLANS = new Set<PlanId>(["monthly", "quarterly", "yearly"]);
@@ -369,7 +416,7 @@ async function authRequestWithToken<TResponse>(path: string, token: string, meth
 }
 
 export async function registerUser(payload: RegisterPayload) {
-  return authRequest<IAuthResponse>("/auth/register", payload);
+  return authRequest<RegisterResponse>("/auth/register", payload);
 }
 
 export async function loginWithCredentials(payload: LoginPayload) {
@@ -556,8 +603,9 @@ export async function fetchAdminCheckInQr(accessToken: string, gymLocation: stri
   return authRequestWithToken<AdminCheckInQrResponse>(`/access/check-in/admin/qr?${query.toString()}`, accessToken, "GET");
 }
 
-export async function fetchAdminStats(accessToken: string, range: AdminRange) {
-  const query = new URLSearchParams({ range });
+export async function fetchAdminStats(accessToken: string, range: AdminRange = "snapshot") {
+  const query = new URLSearchParams();
+  if (range) query.set("range", range);
   return authRequestWithToken<AdminStatsResponse>(`/admin/stats?${query.toString()}`, accessToken, "GET");
 }
 
@@ -617,6 +665,22 @@ export async function deleteAdminBenefit(accessToken: string, id: string) {
   return authRequestWithToken<{ deleted: boolean }>(`/admin/content/benefits/${id}`, accessToken, "DELETE");
 }
 
+export async function fetchAdminBranches(accessToken: string) {
+  return authRequestWithToken<AdminBranch[]>("/admin/content/branches", accessToken, "GET");
+}
+
+export async function createAdminBranch(accessToken: string, payload: Omit<AdminBranch, "id">) {
+  return authRequestWithToken<AdminBranch>("/admin/content/branches", accessToken, "POST", payload);
+}
+
+export async function updateAdminBranch(accessToken: string, id: string, payload: Partial<Omit<AdminBranch, "id">>) {
+  return authRequestWithToken<AdminBranch>(`/admin/content/branches/${id}`, accessToken, "PATCH", payload);
+}
+
+export async function deleteAdminBranch(accessToken: string, id: string) {
+  return authRequestWithToken<{ deleted: boolean }>(`/admin/content/branches/${id}`, accessToken, "DELETE");
+}
+
 export async function fetchAdminPlans(accessToken: string) {
   return authRequestWithToken<AdminPlan[]>("/admin/content/plans", accessToken, "GET");
 }
@@ -627,6 +691,15 @@ export async function upsertAdminPlan(accessToken: string, payload: AdminPlan) {
 
 export async function deleteAdminPlan(accessToken: string, id: string) {
   return authRequestWithToken<{ deleted: boolean }>(`/admin/content/plans/${id}`, accessToken, "DELETE");
+}
+
+export async function searchAdminCounterPaymentStudents(accessToken: string, query: string) {
+  const params = new URLSearchParams({ q: query });
+  return authRequestWithToken<AdminCounterPaymentSearchResponse>(`/admin/payments/students?${params.toString()}`, accessToken, "GET");
+}
+
+export async function registerAdminCounterPayment(accessToken: string, payload: AdminRegisterCounterPaymentPayload) {
+  return authRequestWithToken<AdminRegisterCounterPaymentResponse>("/admin/payments/one-time", accessToken, "POST", payload);
 }
 
 export async function fetchMyProfile(accessToken: string) {
@@ -663,6 +736,22 @@ export async function cancelMySubscription(accessToken: string) {
   return authRequestWithToken<{ message: string }>("/billing/cancel", accessToken, "POST");
 }
 
-export function verifyUserEmail(_email?: string) {
-  return;
+export async function verifyUserEmail(token: string) {
+  return authRequest<{ message: string }>("/auth/verify-email", { token });
+}
+
+export async function resendVerificationEmail(email: string) {
+  return authRequest<{ message: string }>("/auth/resend-verification", { email });
+}
+
+export async function requestPasswordReset(email: string) {
+  return authRequest<{ message: string }>("/auth/forgot-password", { email });
+}
+
+export async function resetPasswordByToken(token: string, newPassword: string, confirmPassword: string) {
+  return authRequest<{ message: string }>("/auth/reset-password", {
+    token,
+    newPassword,
+    confirmPassword,
+  });
 }

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { PlanType, UserRole } from '@gym-admin/shared';
+import { PaymentMethod, PlanType, UserRole } from '@gym-admin/shared';
 import {
   buildCheckoutUrl,
   clearAuthFlowState,
@@ -20,11 +20,17 @@ import {
   persistOrigin,
   persistPlan,
   registerUser,
+  requestPasswordReset,
+  registerAdminCounterPayment,
+  resetPasswordByToken,
   resolveOrigin,
   resolvePlan,
+  resendVerificationEmail,
   saveAuthSession,
+  searchAdminCounterPaymentStudents,
   submitCheckIn,
   updateAdminSiteSettings,
+  verifyUserEmail,
 } from './auth-flow';
 
 describe('auth-flow utility', () => {
@@ -83,7 +89,7 @@ describe('auth-flow utility', () => {
     const fetchMock = global.fetch as ReturnType<typeof vi.fn>;
     fetchMock.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ access_token: 'jwt', user: { email: 'u@u.com', role: 'USER' } }),
+      json: async () => ({ message: 'Te enviamos un email para activar tu cuenta.' }),
     });
 
     const result = await registerUser({
@@ -99,7 +105,7 @@ describe('auth-flow utility', () => {
       'http://localhost:3001/api/auth/register',
       expect.objectContaining({ method: 'POST' }),
     );
-    expect(result.access_token).toBe('jwt');
+    expect(result.message).toBe('Te enviamos un email para activar tu cuenta.');
 
     fetchMock.mockResolvedValueOnce({
       ok: false,
@@ -116,6 +122,41 @@ describe('auth-flow utility', () => {
         confirmPassword: 'Password123',
       }),
     ).rejects.toThrow('Error principal');
+  });
+
+  it('calls verification and password recovery endpoints', async () => {
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>;
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ message: 'Email verificado correctamente.' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ message: 'Si el email existe, te enviamos un nuevo link de verificación.' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ message: 'Si el email existe, te enviamos instrucciones para recuperar tu contraseña.' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ message: 'Contraseña actualizada correctamente.' }),
+      });
+
+    const verify = await verifyUserEmail('token-1');
+    const resend = await resendVerificationEmail('u@u.com');
+    const forgot = await requestPasswordReset('u@u.com');
+    const reset = await resetPasswordByToken('token-2', 'Password123', 'Password123');
+
+    expect(verify.message).toContain('verificado');
+    expect(resend.message).toContain('link');
+    expect(forgot.message).toContain('instrucciones');
+    expect(reset.message).toContain('actualizada');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3001/api/auth/reset-password',
+      expect.objectContaining({ method: 'POST' }),
+    );
   });
 
   it('calls login endpoint and handles fallback API error', async () => {
@@ -405,5 +446,78 @@ describe('auth-flow utility', () => {
     );
     expect(activities).toEqual([]);
     expect(deletion.deleted).toBe(true);
+  });
+
+  it('calls admin counter payment endpoints with payload and token', async () => {
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>;
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        items: [
+          {
+            uuid: 'user-1',
+            fullName: 'Diego Gauto',
+            email: 'diegogauto01@gmail.com',
+            phone: '1122334455',
+            status: 'ACTIVE',
+            hasActiveSubscription: false,
+            activeSubscriptionEndDate: null,
+            latestOneTimePaidAt: null,
+          },
+        ],
+      }),
+    });
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        message: 'Pago físico registrado correctamente.',
+        invoice: {
+          uuid: 'inv-1',
+          userUuid: 'user-1',
+          studentName: 'Diego Gauto',
+          studentEmail: 'diegogauto01@gmail.com',
+          planId: PlanType.MONTHLY,
+          amount: 15000,
+          currency: 'ARS',
+          paymentMethod: PaymentMethod.CASH,
+          paidAt: '2026-02-19T00:00:00.000Z',
+        },
+      }),
+    });
+
+    const search = await searchAdminCounterPaymentStudents('token-123', 'diego');
+    const saved = await registerAdminCounterPayment('token-123', {
+      userUuid: 'user-1',
+      planId: PlanType.MONTHLY,
+      paymentMethod: PaymentMethod.CASH,
+    });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      'http://localhost:3001/api/admin/payments/students?q=diego',
+      expect.objectContaining({
+        method: 'GET',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer token-123',
+        }),
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      'http://localhost:3001/api/admin/payments/one-time',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer token-123',
+        }),
+        body: JSON.stringify({
+          userUuid: 'user-1',
+          planId: PlanType.MONTHLY,
+          paymentMethod: PaymentMethod.CASH,
+        }),
+      }),
+    );
+    expect(search.items[0]?.email).toBe('diegogauto01@gmail.com');
+    expect(saved.invoice.amount).toBe(15000);
   });
 });

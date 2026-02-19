@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module';
 import { Invoice } from '../billing/entities/invoice.entity';
+import { Plan } from '../billing/entities/plan.entity';
 import { Subscription } from '../billing/entities/subscription.entity';
 import { User } from '../users/entities/user.entity';
 import { AccessController } from './access.controller';
@@ -12,7 +13,7 @@ import { MedicalCertificate } from './entities/medical-certificate.entity';
 @Module({
   imports: [
     AuthModule,
-    TypeOrmModule.forFeature([User, Subscription, Invoice, Attendance, MedicalCertificate]),
+    TypeOrmModule.forFeature([User, Subscription, Invoice, Plan, Attendance, MedicalCertificate]),
   ],
   controllers: [AccessController],
   providers: [AccessService],
