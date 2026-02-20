@@ -1,4 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { UserRole } from '@gym-admin/shared';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -15,6 +16,7 @@ import { CreateTrainerDto, UpdateTrainerDto } from './dto/trainer.dto';
 import { AdminContentService } from './admin-content.service';
 
 @Controller()
+@ApiTags('Content', 'Admin')
 export class AdminContentController {
   constructor(private readonly adminContentService: AdminContentService) {}
 
@@ -36,6 +38,7 @@ export class AdminContentController {
   @Get('admin/stats')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('bearer')
   getStats(@Query() query: StatsRangeQueryDto) {
     return this.adminContentService.getStats(query.range);
   }
@@ -43,6 +46,7 @@ export class AdminContentController {
   @Get('admin/payments/students')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('bearer')
   searchStudents(@Query() query: SearchStudentsDto) {
     return this.adminContentService.searchStudentsForCounterPayment(query.q);
   }
@@ -50,6 +54,7 @@ export class AdminContentController {
   @Post('admin/payments/one-time')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('bearer')
   registerOneTimePayment(@Body() payload: RegisterCounterPaymentDto) {
     return this.adminContentService.registerCounterOneTimePayment(payload);
   }
@@ -57,6 +62,7 @@ export class AdminContentController {
   @Get('admin/content/site')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('bearer')
   getSite() {
     return this.adminContentService.getSiteSettings();
   }
@@ -64,6 +70,7 @@ export class AdminContentController {
   @Patch('admin/content/site')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('bearer')
   updateSite(@Body() payload: UpdateSiteSettingsDto) {
     return this.adminContentService.updateSiteSettings(payload);
   }
@@ -71,6 +78,7 @@ export class AdminContentController {
   @Get('admin/content/trainers')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('bearer')
   getTrainers() {
     return this.adminContentService.getTrainers();
   }
@@ -78,6 +86,7 @@ export class AdminContentController {
   @Post('admin/content/trainers')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('bearer')
   createTrainer(@Body() payload: CreateTrainerDto) {
     return this.adminContentService.createTrainer(payload);
   }
@@ -85,6 +94,7 @@ export class AdminContentController {
   @Patch('admin/content/trainers/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('bearer')
   updateTrainer(@Param('id') id: string, @Body() payload: UpdateTrainerDto) {
     return this.adminContentService.updateTrainer(id, payload);
   }
@@ -92,6 +102,7 @@ export class AdminContentController {
   @Delete('admin/content/trainers/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('bearer')
   deleteTrainer(@Param('id') id: string) {
     return this.adminContentService.deleteTrainer(id);
   }
@@ -99,6 +110,7 @@ export class AdminContentController {
   @Get('admin/content/activities')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('bearer')
   getActivities() {
     return this.adminContentService.getActivities();
   }
@@ -106,6 +118,7 @@ export class AdminContentController {
   @Post('admin/content/activities')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('bearer')
   createActivity(@Body() payload: CreateActivityDto) {
     return this.adminContentService.createActivity(payload);
   }
@@ -113,6 +126,7 @@ export class AdminContentController {
   @Patch('admin/content/activities/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('bearer')
   updateActivity(@Param('id') id: string, @Body() payload: UpdateActivityDto) {
     return this.adminContentService.updateActivity(id, payload);
   }
@@ -120,6 +134,7 @@ export class AdminContentController {
   @Delete('admin/content/activities/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('bearer')
   deleteActivity(@Param('id') id: string) {
     return this.adminContentService.deleteActivity(id);
   }
@@ -127,6 +142,7 @@ export class AdminContentController {
   @Get('admin/content/benefits')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('bearer')
   getBenefits() {
     return this.adminContentService.getBenefits();
   }
@@ -134,6 +150,7 @@ export class AdminContentController {
   @Get('admin/content/branches')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('bearer')
   getBranches() {
     return this.adminContentService.getBranches();
   }
@@ -141,6 +158,7 @@ export class AdminContentController {
   @Post('admin/content/branches')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('bearer')
   createBranch(@Body() payload: CreateBranchDto) {
     return this.adminContentService.createBranch(payload);
   }
@@ -148,6 +166,7 @@ export class AdminContentController {
   @Patch('admin/content/branches/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('bearer')
   updateBranch(@Param('id') id: string, @Body() payload: UpdateBranchDto) {
     return this.adminContentService.updateBranch(id, payload);
   }
@@ -155,6 +174,7 @@ export class AdminContentController {
   @Delete('admin/content/branches/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('bearer')
   deleteBranch(@Param('id') id: string) {
     return this.adminContentService.deleteBranch(id);
   }
@@ -162,6 +182,7 @@ export class AdminContentController {
   @Post('admin/content/benefits')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('bearer')
   createBenefit(@Body() payload: CreateBenefitDto) {
     return this.adminContentService.createBenefit(payload);
   }
@@ -169,6 +190,7 @@ export class AdminContentController {
   @Patch('admin/content/benefits/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('bearer')
   updateBenefit(@Param('id') id: string, @Body() payload: UpdateBenefitDto) {
     return this.adminContentService.updateBenefit(id, payload);
   }
@@ -176,6 +198,7 @@ export class AdminContentController {
   @Delete('admin/content/benefits/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('bearer')
   deleteBenefit(@Param('id') id: string) {
     return this.adminContentService.deleteBenefit(id);
   }
@@ -183,6 +206,7 @@ export class AdminContentController {
   @Get('admin/content/plans')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('bearer')
   getPlans() {
     return this.adminContentService.getPlanContent();
   }
@@ -190,6 +214,7 @@ export class AdminContentController {
   @Post('admin/content/plans')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('bearer')
   upsertPlan(@Body() payload: UpsertPlanContentDto) {
     return this.adminContentService.upsertPlanContent(payload);
   }
@@ -197,6 +222,7 @@ export class AdminContentController {
   @Delete('admin/content/plans/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('bearer')
   deletePlan(@Param('id') id: string) {
     return this.adminContentService.deletePlanContent(id);
   }

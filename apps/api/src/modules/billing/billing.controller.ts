@@ -1,4 +1,5 @@
 import { Controller, Post, Body, Query, HttpCode, HttpStatus, Logger, Req, Get, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { PaymentsService } from './payments.service';
 import { SubscriptionsService } from './subscriptions.service';
 import { BillingService } from './billing.service';
@@ -13,6 +14,7 @@ import { RequestPlanChangeDto } from './dto/request-plan-change.dto';
 import { CheckoutPayDto } from './dto/checkout-pay.dto';
 
 @Controller('billing')
+@ApiTags('Billing')
 export class BillingController {
   private readonly logger = new Logger(BillingController.name);
   
@@ -61,6 +63,7 @@ export class BillingController {
 
   @Post('card')
   @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('bearer')
   async updateCard(@Req() req: any, @Body() updateCardDto: UpdateCardDto) {
     const user = req.user; // Assuming AuthGuard populates this
     await this.paymentsService.updateCardAndRecover(user, {
@@ -78,6 +81,7 @@ export class BillingController {
 
   @Post('cancel')
   @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('bearer')
   async cancelSubscription(@Req() req: any) {
     const user = req.user;
     const sub = await this.subscriptionRepository.findOne({ where: { userId: user.id } });
@@ -106,18 +110,21 @@ export class BillingController {
 
   @Get('context')
   @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('bearer')
   async getBillingContext(@Req() req: any) {
     return this.billingService.getBillingContext(req.user);
   }
 
   @Post('plan-request')
   @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('bearer')
   async requestPlanChange(@Req() req: any, @Body() dto: RequestPlanChangeDto) {
     return this.billingService.requestPlanChange(req.user, dto);
   }
 
   @Post('checkout/pay')
   @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('bearer')
   async checkoutPay(@Req() req: any, @Body() dto: CheckoutPayDto) {
     return this.billingService.payImmediateCheckout(req.user, dto);
   }

@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Headers, Post, Query, Req, UnauthorizedException, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { UserRole } from '@gym-admin/shared';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -8,6 +9,8 @@ import { RegisterCheckInDto } from './dto/register-check-in.dto';
 
 @Controller('access')
 @UseGuards(JwtAuthGuard)
+@ApiTags('Access')
+@ApiBearerAuth('bearer')
 export class AccessController {
   constructor(private readonly accessService: AccessService) {}
 

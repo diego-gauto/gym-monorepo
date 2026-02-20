@@ -1,4 +1,5 @@
 import { Controller, Post, Body, UseGuards, Get, Request, HttpCode, HttpStatus } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LocalAuthGuard } from './guards/local-auth.guard';
@@ -11,6 +12,7 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @Controller('auth')
+@ApiTags('Auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
@@ -64,6 +66,7 @@ export class AuthController {
 
   @UseGuards(JwtAuthGuard)
   @Get('profile')
+  @ApiBearerAuth('bearer')
   getProfile(@Request() req: any) {
     return req.user;
   }
