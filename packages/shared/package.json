@@ -5,7 +5,7 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc -b --force",
-    "lint": "eslint . --ext .ts",
+    "lint": "tsc --noEmit",
     "test": "echo \"no tests yet\""
   },
   "devDependencies": {

@@ -5,6 +5,7 @@ import { Plan } from '../billing/entities/plan.entity';
 import { Subscription } from '../billing/entities/subscription.entity';
 import { AuthModule } from '../auth/auth.module';
 import { User } from '../users/entities/user.entity';
+import { AdminBillingService } from './admin-billing.service';
 import { AdminContentController } from './admin-content.controller';
 import { AdminContentService } from './admin-content.service';
 import { Activity } from './entities/activity.entity';
@@ -28,12 +29,10 @@ import { GymBranch } from './entities/gym-branch.entity';
       Trainer,
       Activity,
       Benefit,
-      // Legacy table kept only to migrate existing JSON content to normalized tables.
-      AdminContent,
     ]),
   ],
   controllers: [AdminContentController],
-  providers: [AdminContentService],
+  providers: [AdminContentService, AdminBillingService],
   exports: [AdminContentService],
 })
 export class AdminModule {}
