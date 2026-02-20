@@ -21,9 +21,10 @@ test.describe('Critical auth flows', () => {
     });
 
     await page.goto('/login?origin=elegir_plan&plan=monthly');
-    await page.getByLabel('Email').fill('e2e-user@gympro.test');
-    await page.getByLabel('Contraseña').fill('Password123');
-    await page.getByRole('button', { name: 'Ingresar' }).click();
+    const loginForm = page.locator('form').first();
+    await loginForm.locator('#email').fill('e2e-user@gympro.test');
+    await loginForm.locator('#password').fill('Password123');
+    await loginForm.getByRole('button', { name: 'Ingresar' }).click();
 
     await expect(page).toHaveURL(/\/checkout\/mercadopago\?plan=monthly/);
   });
@@ -46,13 +47,14 @@ test.describe('Critical auth flows', () => {
     });
 
     await page.goto('/register?origin=login_manual');
-    await page.getByLabel('Nombre').fill('Diego');
-    await page.getByLabel('Apellido').fill('Gauto');
-    await page.getByLabel('Email').fill('diego-e2e@gympro.test');
-    await page.getByLabel('Teléfono').fill('11 5555 1234');
-    await page.getByLabel('Contraseña').fill('Password123');
-    await page.getByLabel('Confirmar contraseña').fill('Password123');
-    await page.getByRole('button', { name: 'Crear cuenta' }).click();
+    const registerForm = page.locator('form').first();
+    await registerForm.locator('#firstName').fill('Diego');
+    await registerForm.locator('#lastName').fill('Gauto');
+    await registerForm.locator('#email').fill('diego-e2e@gympro.test');
+    await registerForm.locator('#phone').fill('11 5555 1234');
+    await registerForm.locator('#password').fill('Password123');
+    await registerForm.locator('#confirmPassword').fill('Password123');
+    await registerForm.getByRole('button', { name: 'Crear cuenta' }).click();
 
     await expect(page.getByText('Te enviamos un email para activar tu cuenta.')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Reenviar email de verificación' })).toBeVisible();
